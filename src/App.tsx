@@ -30,7 +30,7 @@ import { ShortcutCallbackManager } from './aiCore/tools/SystemTools/ShortcutCall
 import { DialogProvider } from './hooks/useDialog'
 import { ToastProvider } from './hooks/useToast'
 import MainStackNavigator from './navigators/MainStackNavigator'
-import { runAppDataMigrations } from './services/AppInitializationService'
+import { initializeAgentRemoteService, runAppDataMigrations } from './services/AppInitializationService'
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync()
@@ -62,6 +62,7 @@ function DatabaseInitializer({ children }: { children: React.ReactNode }) {
       const initializeApp = async () => {
         try {
           await runAppDataMigrations()
+          await initializeAgentRemoteService()
           logger.info('App data initialized successfully')
         } catch (e) {
           logger.error('Failed to initialize app data', e as Error)

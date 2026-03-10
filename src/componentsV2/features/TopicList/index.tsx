@@ -14,11 +14,12 @@ import { getDefaultAssistant } from '@/services/AssistantService'
 import { loggerService } from '@/services/LoggerService'
 import { deleteMessagesByTopicId } from '@/services/MessagesService'
 import { topicService } from '@/services/TopicService'
+import type { AgentRemoteBridgePresence, AgentRemoteSessionState } from '@/types/agentRemote'
 import type { Assistant, Topic } from '@/types/assistant'
 import type { DateGroupKey, TimeFormat } from '@/utils/date'
 import { getTimeFormatForGroup, groupItemsByDate } from '@/utils/date'
 
-import { TopicItem } from '../TopicItem'
+import { RemoteSessionItem, TopicItem } from '../TopicItem'
 
 const logger = loggerService.withContext('GroupTopicList')
 
@@ -26,6 +27,10 @@ const waitForDialogSpinner = () => new Promise(resolve => setTimeout(resolve, 50
 
 interface GroupedTopicListProps {
   topics: Topic[]
+  remoteSessions?: AgentRemoteSessionState[]
+  remoteBridgePresence?: AgentRemoteBridgePresence
+  currentRemoteTopicId?: string | null
+  onPressRemoteSession?: (sessionId: string) => void
   enableScroll: boolean
   handleNavigateChatScreen?: (topicId: string) => void
   isMultiSelectMode?: boolean
@@ -37,11 +42,17 @@ interface GroupedTopicListProps {
 
 // ListItem 类型定义现在使用导入的 TimeFormat
 type ListItem =
+  | { type: 'remoteHeader'; title: string }
+  | { type: 'remoteSession'; session: AgentRemoteSessionState }
   | { type: 'header'; title: string; groupKey: DateGroupKey }
   | { type: 'topic'; topic: Topic; timeFormat: TimeFormat; groupKey: DateGroupKey }
 
 export function TopicList({
   topics,
+  remoteSessions = [],
+  remoteBridgePresence = 'unknown',
+  currentRemoteTopicId,
+  onPressRemoteSession,
   enableScroll,
   handleNavigateChatScreen,
   isMultiSelectMode = false,
@@ -110,6 +121,14 @@ export function TopicList({
 
     const data: ListItem[] = []
 
+    if (remoteSessions.length > 0) {
+      data.push({ type: 'remoteHeader', title: 'Remote Sessions' })
+
+      remoteSessions.forEach(session => {
+        data.push({ type: 'remoteSession', session })
+      })
+    }
+
     groupOrder.forEach(key => {
       const topicList = groupedTopics[key]
 
@@ -129,7 +148,7 @@ export function TopicList({
     })
 
     return data
-  }, [topics, t, collapsedGroups])
+  }, [collapsedGroups, remoteSessions, t, topics])
 
   const handleDelete = async (topicId: string) => {
     presentDialog('error', {
@@ -208,6 +227,21 @@ export function TopicList({
 
   const renderItem = ({ item, index }: { item: ListItem; index: number }) => {
     switch (item.type) {
+      case 'remoteHeader':
+        return (
+          <XStack className="items-center gap-2" style={{ paddingTop: index !== 0 ? 20 : 0 }}>
+            <Text className="text-foreground font-bold">{item.title}</Text>
+          </XStack>
+        )
+      case 'remoteSession':
+        return (
+          <RemoteSessionItem
+            session={item.session}
+            bridgePresence={remoteBridgePresence}
+            onPress={onPressRemoteSession}
+            isActive={currentRemoteTopicId === item.session.sessionId}
+          />
+        )
       case 'header': {
         const isCollapsed = collapsedGroups[item.groupKey]
         return (
@@ -250,6 +284,14 @@ export function TopicList({
       scrollEnabled={enableScroll}
       extraData={{ isMultiSelectMode, selectionKey }}
       keyExtractor={(item, index) => {
+        if (item.type === 'remoteHeader') {
+          return `remote-header-${index}`
+        }
+
+        if (item.type === 'remoteSession') {
+          return `remote-session-${item.session.sessionId}`
+        }
+
         if (item.type === 'header') {
           return `header-${item.title}-${index}`
         }

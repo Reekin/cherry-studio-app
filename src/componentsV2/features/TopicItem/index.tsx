@@ -259,3 +259,5 @@ export const TopicItem: FC<TopicItemProps> = ({
     </ContextMenu>
   )
 }
+
+export { RemoteSessionItem } from './RemoteSessionItem'

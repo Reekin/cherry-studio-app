@@ -20,6 +20,7 @@ import { useMessages } from '@/hooks/useMessages'
 import { usePreference } from '@/hooks/usePreference'
 import { useTheme } from '@/hooks/useTheme'
 import type { RootState } from '@/store'
+import type { AgentRemoteBridgePresence, AgentRemoteSessionState } from '@/types/agentRemote'
 import type { Assistant, Topic } from '@/types/assistant'
 import type { GroupedMessage } from '@/types/message'
 import { isIOS } from '@/utils/device'
@@ -27,15 +28,28 @@ import { getGroupedMessages } from '@/utils/messageUtils/filters'
 
 import WelcomeContent from '../WelcomeContent'
 import MessageGroup from './MessageGroup'
+import RemoteMessages from './RemoteMessages'
 
 const AnimatedBlurView = Animated.createAnimatedComponent(BlurView)
 
-interface MessagesProps {
+type MessagesProps =
+  | {
+      mode?: 'local'
+      assistant: Assistant
+      topic: Topic
+    }
+  | {
+      mode: 'remote'
+      remoteSession: AgentRemoteSessionState
+      bridgePresence: AgentRemoteBridgePresence
+    }
+
+interface LocalMessagesProps {
   assistant: Assistant
   topic: Topic
 }
 
-const Messages: FC<MessagesProps> = ({ assistant, topic }) => {
+const LocalMessages: FC<LocalMessagesProps> = ({ assistant, topic }) => {
   const { messages } = useMessages(topic.id)
   const { messageBlocks } = useTopicBlocks(topic.id)
   const { isDark } = useTheme()
@@ -178,6 +192,14 @@ const Messages: FC<MessagesProps> = ({ assistant, topic }) => {
       )}
     </View>
   )
+}
+
+const Messages: FC<MessagesProps> = props => {
+  if (props.mode === 'remote') {
+    return <RemoteMessages session={props.remoteSession} bridgePresence={props.bridgePresence} />
+  }
+
+  return <LocalMessages assistant={props.assistant} topic={props.topic} />
 }
 
 const styles = StyleSheet.create({

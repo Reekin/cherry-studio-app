@@ -9,6 +9,7 @@ import { SYSTEM_PROVIDERS, SYSTEM_PROVIDERS_CONFIG } from '@/config/providers'
 import { getWebSearchProviders } from '@/config/websearchProviders'
 import { storage } from '@/utils'
 
+import { agentRemoteService } from './agentRemote'
 import { assistantService, getDefaultAssistant } from './AssistantService'
 import { loggerService } from './LoggerService'
 import { mcpService } from './McpService'
@@ -24,6 +25,10 @@ type AppDataMigration = {
 }
 
 const logger = loggerService.withContext('AppInitializationService')
+const DEFAULT_AGENT_REMOTE_URL = 'ws://127.0.0.1:8787/ios'
+
+let agentRemoteInitialized = false
+let agentRemoteHydrationPromise: Promise<void> | null = null
 
 const APP_DATA_MIGRATIONS: AppDataMigration[] = [
   {
@@ -119,6 +124,85 @@ export function resetAppInitializationState(): void {
   topicService.resetState()
   mcpService.invalidateCache()
   logger.info('App initialization state reset')
+}
+
+function parseEnvBoolean(value?: string): boolean | undefined {
+  if (!value) {
+    return undefined
+  }
+
+  const normalized = value.trim().toLowerCase()
+
+  if (['1', 'true', 'yes', 'on'].includes(normalized)) {
+    return true
+  }
+
+  if (['0', 'false', 'no', 'off'].includes(normalized)) {
+    return false
+  }
+
+  return undefined
+}
+
+function resolveAgentRemoteConfig(): {
+  enabled: boolean
+  url: string
+  sharedKey?: string
+} {
+  const envUrl = process.env.EXPO_PUBLIC_AGENT_REMOTE_URL?.trim() || process.env.AGENT_REMOTE_URL?.trim() || ''
+  const sharedKey =
+    process.env.EXPO_PUBLIC_AGENT_REMOTE_SHARED_KEY?.trim() || process.env.AGENT_REMOTE_SHARED_KEY?.trim() || undefined
+  const enabledFlag = parseEnvBoolean(
+    process.env.EXPO_PUBLIC_AGENT_REMOTE_ENABLED || process.env.AGENT_REMOTE_ENABLED
+  )
+
+  return {
+    enabled: enabledFlag ?? Boolean(envUrl),
+    url: envUrl || DEFAULT_AGENT_REMOTE_URL,
+    sharedKey
+  }
+}
+
+export async function initializeAgentRemoteService(): Promise<void> {
+  if (!agentRemoteHydrationPromise) {
+    agentRemoteHydrationPromise = agentRemoteService
+      .hydrate()
+      .then(() => {
+        logger.info('Hydrated agent remote service state')
+      })
+      .catch(error => {
+        logger.warn('Failed to hydrate agent remote service state', error as Error)
+      })
+  }
+
+  await agentRemoteHydrationPromise
+
+  if (agentRemoteInitialized) {
+    return
+  }
+
+  const config = resolveAgentRemoteConfig()
+
+  if (!config.enabled) {
+    logger.info('Agent remote service is disabled; skipping websocket startup')
+    return
+  }
+
+  agentRemoteInitialized = true
+  logger.info('Starting agent remote service', { url: config.url })
+
+  void agentRemoteService
+    .connect({
+      url: config.url,
+      sharedKey: config.sharedKey,
+      reconnect: {
+        enabled: true
+      }
+    })
+    .catch(error => {
+      agentRemoteInitialized = false
+      logger.warn('Agent remote connection attempt failed', error as Error)
+    })
 }
 
 async function ensureCurrentTopic(): Promise<void> {

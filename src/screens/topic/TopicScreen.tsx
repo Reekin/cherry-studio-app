@@ -31,6 +31,8 @@ import { topicService } from '@/services/TopicService'
 import type { HomeNavigationProps } from '@/types/naviagate'
 import { isIOS } from '@/utils/device'
 
+import { buildRemoteTopicId, useAgentRemoteSessions } from '../home/agentRemote'
+
 const logger = loggerService.withContext('TopicScreen')
 
 const waitForDialogSpinner = () => new Promise(resolve => setTimeout(resolve, 50))
@@ -43,6 +45,10 @@ export default function TopicScreen() {
   const { topics, isLoading } = useTopics()
   const { currentTopicId, switchTopic } = useCurrentTopic()
   const { createNewTopic } = useCreateNewTopic()
+  const {
+    state: agentRemoteState,
+    sessions: remoteSessions
+  } = useAgentRemoteSessions()
   const toast = useToast()
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false)
   const [selectedTopicIds, setSelectedTopicIds] = useState<string[]>([])
@@ -68,6 +74,26 @@ export default function TopicScreen() {
 
   const selectionCount = selectedTopicIds.length
   const hasSelection = selectionCount > 0
+  const filteredRemoteSessions = useMemo(() => {
+    const normalizedSearch = searchText.trim().toLowerCase()
+
+    if (!normalizedSearch) {
+      return remoteSessions
+    }
+
+    return remoteSessions.filter(session => {
+      const keywords = [
+        session.sessionId,
+        session.status,
+        session.visibility,
+        agentRemoteState.bridgePresence,
+        session.lastError?.code,
+        session.lastError?.message
+      ]
+
+      return keywords.some(keyword => keyword?.toLowerCase().includes(normalizedSearch))
+    })
+  }, [agentRemoteState.bridgePresence, remoteSessions, searchText])
 
   const getAssistantForNewTopic = useCallback(async () => {
     if (assistantId) {
@@ -86,6 +112,20 @@ export default function TopicScreen() {
       } else {
         navigation.navigate('ChatScreen', { topicId })
       }
+    },
+    [navigation]
+  )
+
+  const handleNavigateRemoteSession = useCallback(
+    (sessionId: string) => {
+      const topicId = buildRemoteTopicId(sessionId)
+
+      if (navigation.canGoBack()) {
+        navigation.replace('ChatScreen', { topicId })
+        return
+      }
+
+      navigation.navigate('ChatScreen', { topicId })
     },
     [navigation]
   )
@@ -220,12 +260,15 @@ export default function TopicScreen() {
             ) : (
               <TopicList
                 topics={filteredTopics}
+                remoteSessions={filteredRemoteSessions}
+                remoteBridgePresence={agentRemoteState.bridgePresence}
                 enableScroll={true}
                 isMultiSelectMode={isMultiSelectMode}
                 selectedTopicIds={selectedTopicIds}
                 onToggleTopicSelection={handleToggleTopicSelection}
                 onEnterMultiSelectMode={handleEnterMultiSelectMode}
                 handleNavigateChatScreen={handleNavigateChatScreen}
+                onPressRemoteSession={handleNavigateRemoteSession}
                 getAssistantForNewTopic={getAssistantForNewTopic}
               />
             )}

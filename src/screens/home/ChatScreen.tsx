@@ -1,5 +1,6 @@
 import type { DrawerNavigationProp } from '@react-navigation/drawer'
-import { DrawerActions, useNavigation } from '@react-navigation/native'
+import type { RouteProp } from '@react-navigation/native'
+import { DrawerActions, useNavigation, useRoute } from '@react-navigation/native'
 import type { StackNavigationProp } from '@react-navigation/stack'
 import React from 'react'
 import { ActivityIndicator, Platform, View } from 'react-native'
@@ -7,7 +8,8 @@ import { PanGestureHandler, State } from 'react-native-gesture-handler'
 import { KeyboardAvoidingView, KeyboardController } from 'react-native-keyboard-controller'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { SafeAreaContainer, YStack } from '@/componentsV2'
+import { HeaderBar, SafeAreaContainer, YStack } from '@/componentsV2'
+import Text from '@/componentsV2/base/Text'
 import { ChatScreenHeader } from '@/componentsV2/features/ChatScreen/Header'
 import { MessageInputContainer } from '@/componentsV2/features/ChatScreen/MessageInput/MessageInputContainer'
 import { CitationSheet } from '@/componentsV2/features/Sheet/CitationSheet'
@@ -17,7 +19,10 @@ import { usePreference } from '@/hooks/usePreference'
 import { useCurrentTopic } from '@/hooks/useTopic'
 import type { HomeStackParamList } from '@/navigators/HomeStackNavigator'
 
+import { getRemoteSessionId, useAgentRemoteSession } from './agentRemote'
 import ChatContent from './ChatContent'
+import RemoteSessionComposer from './RemoteSessionComposer'
+import RemoteSessionHeader from './RemoteSessionHeader'
 
 KeyboardController.preload()
 
@@ -26,10 +31,18 @@ type ChatScreenNavigationProp = DrawerNavigationProp<any> & StackNavigationProp<
 const ChatScreen = () => {
   const insets = useSafeAreaInsets()
   const navigation = useNavigation<ChatScreenNavigationProp>()
+  const route = useRoute<RouteProp<HomeStackParamList, 'ChatScreen'>>()
   const [topicId] = usePreference('topic.current_id')
   const { currentTopic } = useCurrentTopic()
+  const routeTopicId = route.params?.topicId
+  const remoteSessionId = getRemoteSessionId(routeTopicId)
+  const isRemoteMode = !!remoteSessionId
+  const {
+    state: agentRemoteState,
+    session: remoteSession
+  } = useAgentRemoteSession(remoteSessionId)
 
-  const { assistant, isLoading: assistantLoading } = useAssistant(currentTopic?.assistantId || '')
+  const { assistant, isLoading: assistantLoading } = useAssistant(isRemoteMode ? '' : currentTopic?.assistantId || '')
   const specificBottom = useBottom()
 
   // 处理侧滑手势
@@ -54,10 +67,72 @@ const ChatScreen = () => {
         const hasExcellentDistance = Math.abs(translationX) > 80
 
         if ((hasGoodDistance && hasGoodVelocity) || hasExcellentDistance) {
-          navigation.navigate('TopicScreen', { assistantId: assistant?.id })
+          navigation.navigate('TopicScreen', { assistantId: isRemoteMode ? undefined : assistant?.id })
         }
       }
     }
+  }
+
+  if (isRemoteMode && remoteSession) {
+    return (
+      <SafeAreaContainer
+        style={{
+          paddingTop: insets.top,
+          paddingLeft: insets.left,
+          paddingRight: insets.right,
+          paddingBottom: 0
+        }}>
+        <PanGestureHandler
+          onGestureEvent={handleSwipeGesture}
+          onHandlerStateChange={handleSwipeGesture}
+          activeOffsetX={[-10, 10]}
+          failOffsetY={[-20, 20]}>
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? -20 : -specificBottom}
+            behavior="padding">
+            <YStack className="flex-1">
+              <RemoteSessionHeader session={remoteSession} bridgePresence={agentRemoteState.bridgePresence} />
+              <View
+                style={{
+                  flex: 1
+                }}>
+                <ChatContent
+                  key={routeTopicId ?? topicId}
+                  mode="remote"
+                  remoteSession={remoteSession}
+                  bridgePresence={agentRemoteState.bridgePresence}
+                />
+              </View>
+              <RemoteSessionComposer session={remoteSession} />
+            </YStack>
+          </KeyboardAvoidingView>
+        </PanGestureHandler>
+        <CitationSheet />
+      </SafeAreaContainer>
+    )
+  }
+
+  if (isRemoteMode && !remoteSession) {
+    return (
+      <SafeAreaContainer
+        style={{
+          flex: 1,
+          paddingTop: insets.top,
+          paddingLeft: insets.left,
+          paddingRight: insets.right,
+          justifyContent: 'center',
+          alignItems: 'center'
+        }}>
+        <HeaderBar title="Remote Session" />
+        <ActivityIndicator />
+        <View style={{ marginTop: 12, paddingHorizontal: 24 }}>
+          <Text className="text-foreground-secondary text-center text-sm">
+            {remoteSessionId ? `Waiting for remote session ${remoteSessionId}` : 'Waiting for remote session'}
+          </Text>
+        </View>
+      </SafeAreaContainer>
+    )
   }
 
   if (!currentTopic || !assistant || assistantLoading) {
@@ -94,7 +169,7 @@ const ChatScreen = () => {
               }}>
               {/* ChatContent use key to re-render screen content */}
               {/* if remove key, change topic will not re-render */}
-              <ChatContent key={topicId} topic={currentTopic} assistant={assistant} />
+              <ChatContent key={routeTopicId ?? topicId} topic={currentTopic} assistant={assistant} />
             </View>
             <MessageInputContainer topic={currentTopic} />
           </YStack>
