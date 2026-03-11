@@ -42,6 +42,8 @@ export type AgentRemoteEnvelopeType = z.infer<typeof agentRemoteEnvelopeTypeSche
 
 export const AGENT_REMOTE_COMMAND_EVENTS = [
   'agent.list',
+  'agent.upsert',
+  'agent.delete',
   'session.list',
   'session.create',
   'message.send',
@@ -52,6 +54,9 @@ export const AGENT_REMOTE_COMMAND_EVENTS = [
 export type AgentRemoteCommandEvent = (typeof AGENT_REMOTE_COMMAND_EVENTS)[number]
 
 export const AGENT_REMOTE_SERVER_EVENTS = [
+  'agent.listed',
+  'agent.upserted',
+  'agent.deleted',
   'session.created',
   'session.pushed',
   'message.delta',
@@ -76,6 +81,12 @@ export const agentRemoteErrorCodeSchema = z.enum([
   'COMMAND_RECOVERY_REQUIRED'
 ])
 export type AgentRemoteErrorCode = z.infer<typeof agentRemoteErrorCodeSchema>
+
+export const agentRemoteProviderSchema = z.enum(['claude-code', 'codex'])
+export type AgentRemoteProvider = z.infer<typeof agentRemoteProviderSchema>
+
+export const agentRemotePermissionModeSchema = z.enum(['default', 'acceptEdits', 'bypassPermissions', 'plan'])
+export type AgentRemotePermissionMode = z.infer<typeof agentRemotePermissionModeSchema>
 
 export const agentRemoteEnvelopeSchema = z.object({
   type: agentRemoteEnvelopeTypeSchema,
@@ -112,6 +123,46 @@ export const agentRemoteSessionCreatedPayloadSchema = z.object({
   runPushPolicy: agentRemoteRunPushPolicySchema.optional()
 })
 export type AgentRemoteSessionCreatedPayload = z.infer<typeof agentRemoteSessionCreatedPayloadSchema>
+
+export const agentRemoteAgentSchema = z.object({
+  agentId: z.string().min(1),
+  name: z.string().min(1),
+  prompt: z.string().default(''),
+  directories: z.array(z.string()).default([]),
+  provider: agentRemoteProviderSchema,
+  permissionMode: agentRemotePermissionModeSchema.default('bypassPermissions'),
+  createdAt: z.number().int().nonnegative().optional(),
+  updatedAt: z.number().int().nonnegative().optional()
+})
+export type AgentRemoteAgent = z.infer<typeof agentRemoteAgentSchema>
+
+export const agentRemoteAgentListPayloadSchema = z.object({}).passthrough()
+export type AgentRemoteAgentListPayload = z.infer<typeof agentRemoteAgentListPayloadSchema>
+
+export const agentRemoteAgentUpsertPayloadSchema = agentRemoteAgentSchema.extend({
+  agentId: z.string().min(1).optional()
+})
+export type AgentRemoteAgentUpsertPayload = z.infer<typeof agentRemoteAgentUpsertPayloadSchema>
+
+export const agentRemoteAgentDeletePayloadSchema = z.object({
+  agentId: z.string().min(1)
+})
+export type AgentRemoteAgentDeletePayload = z.infer<typeof agentRemoteAgentDeletePayloadSchema>
+
+export const agentRemoteAgentListedPayloadSchema = z.object({
+  agents: z.array(agentRemoteAgentSchema).default([])
+})
+export type AgentRemoteAgentListedPayload = z.infer<typeof agentRemoteAgentListedPayloadSchema>
+
+export const agentRemoteAgentUpsertedPayloadSchema = z.object({
+  agent: agentRemoteAgentSchema
+})
+export type AgentRemoteAgentUpsertedPayload = z.infer<typeof agentRemoteAgentUpsertedPayloadSchema>
+
+export const agentRemoteAgentDeletedPayloadSchema = z.object({
+  agentId: z.string().min(1)
+})
+export type AgentRemoteAgentDeletedPayload = z.infer<typeof agentRemoteAgentDeletedPayloadSchema>
 
 export const agentRemoteSessionPushedPayloadSchema = z.object({
   sessionId: z.string(),
@@ -213,6 +264,9 @@ export const agentRemoteSessionSnapshotRequestPayloadSchema = z.object({
 export type AgentRemoteSessionSnapshotRequestPayload = z.infer<typeof agentRemoteSessionSnapshotRequestPayloadSchema>
 
 export type AgentRemoteIncomingPayload =
+  | AgentRemoteAgentDeletedPayload
+  | AgentRemoteAgentListedPayload
+  | AgentRemoteAgentUpsertedPayload
   | AgentRemoteBridgePresencePayload
   | AgentRemoteMessageDeltaPayload
   | AgentRemoteMessageDonePayload
@@ -278,6 +332,8 @@ export interface AgentRemoteConnectionState {
 export interface AgentRemoteState {
   connection: AgentRemoteConnectionState
   bridgePresence: AgentRemoteBridgePresence
+  agents: Record<string, AgentRemoteAgent>
+  agentOrder: string[]
   sessions: Record<string, AgentRemoteSessionState>
   sessionOrder: string[]
   pendingRequests: Record<string, AgentRemotePendingRequest>
@@ -297,6 +353,18 @@ export interface AgentRemoteConnectOptions {
 
 export interface AgentRemoteCreateSessionInput extends AgentRemoteSessionCreatePayload {}
 
+export interface AgentRemoteListAgentsInput extends AgentRemoteAgentListPayload {
+  requestId?: string
+}
+
+export interface AgentRemoteUpsertAgentInput extends AgentRemoteAgentUpsertPayload {
+  requestId?: string
+}
+
+export interface AgentRemoteDeleteAgentInput extends AgentRemoteAgentDeletePayload {
+  requestId?: string
+}
+
 export interface AgentRemoteSendMessageInput extends AgentRemoteMessageSendPayload {
   requestId?: string
 }
@@ -306,6 +374,9 @@ export interface AgentRemoteSnapshotRequestInput extends AgentRemoteSessionSnaps
 }
 
 export const agentRemoteIncomingPayloadParsers: Record<AgentRemoteServerEvent, z.ZodTypeAny> = {
+  'agent.deleted': agentRemoteAgentDeletedPayloadSchema,
+  'agent.listed': agentRemoteAgentListedPayloadSchema,
+  'agent.upserted': agentRemoteAgentUpsertedPayloadSchema,
   'bridge.offline': agentRemoteBridgePresencePayloadSchema,
   'bridge.online': agentRemoteBridgePresencePayloadSchema,
   'message.delta': agentRemoteMessageDeltaPayloadSchema,

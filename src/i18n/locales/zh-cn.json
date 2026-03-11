@@ -1,5 +1,89 @@
 {
   "translation": {
+    "agent": {
+      "remote": {
+        "agent_empty": {
+          "connected": "桌面端还没有发布远程 Agent。",
+          "disconnected": "请先在远程设置中配置并连接桌面 Relay，再加载 Agent 列表。"
+        },
+        "agent_list_title": "远程 Agent",
+        "badge": {
+          "awaiting_snapshot": "等待快照",
+          "error": "错误",
+          "offline": "离线",
+          "online": "在线",
+          "pushed": "已推送",
+          "streaming": "生成中"
+        },
+        "composer": {
+          "error": {
+            "missing_metadata": "远程会话缺少 agent 元数据。",
+            "send_failed": "发送远程消息失败。"
+          },
+          "helper": {
+            "pending": "消息已入队，等待 Relay 确认和桌面端执行。",
+            "ready": "向此远程会话发送消息。",
+            "waiting_metadata": "正在等待会话元数据，暂时无法发送。"
+          },
+          "placeholder": "向此远程会话发送消息",
+          "queued": "已排队",
+          "send": "发送",
+          "toast": {
+            "queued": "消息已加入远程投递队列，等待桌面端响应。"
+          }
+        },
+        "connection_required": "编辑远程 Agent 前请先连接 Relay。",
+        "connection_required_hint": "打开远程设置，重新连接 Relay 后再试一次。",
+        "delete_confirm_message": "这会从 Relay 中删除桌面端编写的远程 Agent。",
+        "delete_confirm_title": "删除远程 Agent {{name}}？",
+        "delete_failed": "删除远程 Agent 失败。",
+        "delete_success": "远程 Agent 已删除。",
+        "empty": {
+          "subtitle": "快照恢复待命中。",
+          "title": "正在等待远程会话消息"
+        },
+        "header": {
+          "desktop_mirrored": "此会话由桌面端镜像同步。",
+          "desktop_syncing": "桌面端已变更此会话，正在拉取最新快照。"
+        },
+        "list_title": "远程会话",
+        "load_failed": "加载远程 Agent 失败。",
+        "loading": "正在等待远程会话",
+        "loading_with_id": "正在等待远程会话 {{sessionId}}",
+        "message": {
+          "content": {
+            "cancelled": "响应已取消。",
+            "empty": "暂无内容",
+            "receiving": "正在接收响应..."
+          },
+          "role": {
+            "assistant": "远程助手",
+            "system": "系统"
+          },
+          "status": {
+            "cancelled": "已取消"
+          }
+        },
+        "open_chat": "打开聊天",
+        "session_create_failed": "创建远程会话失败。",
+        "settings_active_url": "当前地址",
+        "settings_bridge_label": "桌面桥接",
+        "settings_connection_group": "连接",
+        "settings_help": "Relay 地址和共享密钥会保存到偏好设置，并在保存后立即生效。",
+        "settings_relay_url": "Relay 地址",
+        "settings_save_failed": "保存远程设置失败。",
+        "settings_saved": "远程设置已保存。",
+        "settings_shared_key": "共享密钥",
+        "settings_shared_key_placeholder": "可选的共享密钥",
+        "settings_status_group": "状态",
+        "settings_status_label": "WebSocket",
+        "settings_title": "远程设置",
+        "title": "远程会话",
+        "updated_at": {
+          "waiting": "等待更新中"
+        }
+      }
+    },
     "assistants": {
       "market": {
         "add": {
@@ -1041,64 +1125,6 @@
       "title": {
         "label": "话题",
         "recent": "最近的话题"
-      }
-    },
-    "agent": {
-      "remote": {
-        "title": "远程会话",
-        "list_title": "远程会话",
-        "loading": "正在等待远程会话",
-        "loading_with_id": "正在等待远程会话 {{sessionId}}",
-        "updated_at": {
-          "waiting": "等待更新中"
-        },
-        "header": {
-          "desktop_syncing": "桌面端已变更此会话，正在拉取最新快照。",
-          "desktop_mirrored": "此会话由桌面端镜像同步。"
-        },
-        "composer": {
-          "placeholder": "向此远程会话发送消息",
-          "send": "发送",
-          "queued": "已排队",
-          "helper": {
-            "waiting_metadata": "正在等待会话元数据，暂时无法发送。",
-            "pending": "消息已入队，等待 Relay 确认和桌面端执行。",
-            "ready": "向此远程会话发送消息。"
-          },
-          "error": {
-            "missing_metadata": "远程会话缺少 agent 元数据。",
-            "send_failed": "发送远程消息失败。"
-          },
-          "toast": {
-            "queued": "消息已加入远程投递队列，等待桌面端响应。"
-          }
-        },
-        "message": {
-          "role": {
-            "system": "系统",
-            "assistant": "远程助手"
-          },
-          "status": {
-            "cancelled": "已取消"
-          },
-          "content": {
-            "receiving": "正在接收响应...",
-            "cancelled": "响应已取消。",
-            "empty": "暂无内容"
-          }
-        },
-        "empty": {
-          "title": "正在等待远程会话消息",
-          "subtitle": "快照恢复待命中。"
-        },
-        "badge": {
-          "pushed": "已推送",
-          "online": "在线",
-          "offline": "离线",
-          "awaiting_snapshot": "等待快照",
-          "streaming": "生成中",
-          "error": "错误"
-        }
       }
     },
     "update": {

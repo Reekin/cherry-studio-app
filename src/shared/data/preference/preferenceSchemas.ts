@@ -69,6 +69,10 @@ export const DefaultPreferences: PreferenceSchemas = {
     // When disabled, users can scroll freely without being forced to the bottom
     'chat.auto_scroll': true,
 
+    // === Remote Configuration ===
+    'remote.relay_url': '',
+    'remote.shared_key': '',
+
     // Current version of the app data initialization
     // Used to run incremental initialization migrations when new data is added
     'app.initialization_version': 0,
@@ -99,6 +103,8 @@ export const PreferenceDescriptions: Record<keyof PreferenceSchemas['default'], 
   'websearch.override_search_service': 'Use custom search service configuration',
   'websearch.content_limit': 'Content length limit for search results (characters)',
   'chat.auto_scroll': 'Automatically scroll to bottom when receiving streamed responses',
+  'remote.relay_url': 'Relay websocket URL for remote sessions',
+  'remote.shared_key': 'Shared key for remote session authentication',
   'app.initialization_version': 'Current version of app data initialization migrations',
   'app.dismissed_update_version': 'Version number that user chose to skip updating',
   'app.developer_mode': 'Enable developer mode for advanced features'

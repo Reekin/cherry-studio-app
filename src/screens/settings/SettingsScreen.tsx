@@ -17,7 +17,7 @@ import {
   XStack,
   YStack
 } from '@/componentsV2'
-import { Cloud, Globe, HardDrive, Info, Package, Settings2 } from '@/componentsV2/icons/LucideIcon'
+import { Cloud, Globe, HardDrive, Info, Package, Radio, Settings2 } from '@/componentsV2/icons/LucideIcon'
 import { useSettings } from '@/hooks/useSettings'
 import { useSwipeGesture } from '@/hooks/useSwipeGesture'
 import type { HomeNavigationProps } from '@/types/naviagate'
@@ -64,6 +64,12 @@ export default function SettingsScreen() {
           screen: 'AssistantSettings',
           specificScreen: 'AssistantSettingsScreen',
           icon: <Package size={24} />
+        },
+        {
+          title: t('agent.remote.settings_title', { defaultValue: 'Remote Settings' }),
+          screen: 'GeneralSettings',
+          specificScreen: 'RemoteSettingsScreen',
+          icon: <Radio size={24} />
         },
         {
           title: t('settings.websearch.title'),

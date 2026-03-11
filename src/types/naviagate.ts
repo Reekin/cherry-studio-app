@@ -21,6 +21,10 @@ export type AssistantDetailScreenParams = {
   topicId?: string
 }
 
+export type RemoteAgentSettingsScreenParams = {
+  agentId?: string
+}
+
 // App Drawer Navigator
 export type AppDrawerParamList = {
   Home:
@@ -40,6 +44,10 @@ export type AppDrawerParamList = {
     | {
         screen: 'AssistantDetailScreen'
         params: AssistantDetailScreenParams
+      }
+    | {
+        screen: 'RemoteAgentSettingsScreen'
+        params?: RemoteAgentSettingsScreenParams
       }
     | undefined
   AssistantMarket: { screen: 'AssistantMarketScreen' } | undefined

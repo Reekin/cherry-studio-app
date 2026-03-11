@@ -2,14 +2,23 @@ import { loggerService } from '@/services/LoggerService'
 import type {
   AgentRemoteConnectOptions,
   AgentRemoteCreateSessionInput,
+  AgentRemoteDeleteAgentInput,
   AgentRemoteEnvelope,
+  AgentRemoteIncomingPayload,
+  AgentRemoteListAgentsInput,
   AgentRemoteProtocolErrorPayload,
+  AgentRemoteServerEvent,
   AgentRemoteSendMessageInput,
   AgentRemoteSnapshotRequestInput,
-  AgentRemoteState} from '@/types/agentRemote'
+  AgentRemoteState,
+  AgentRemoteUpsertAgentInput
+} from '@/types/agentRemote'
 import {
   AGENT_REMOTE_ACK_EVENT,
   agentRemoteAckPayloadSchema,
+  agentRemoteAgentDeletePayloadSchema,
+  agentRemoteAgentListPayloadSchema,
+  agentRemoteAgentUpsertPayloadSchema,
   agentRemoteMessageSendPayloadSchema,
   agentRemoteProtocolErrorPayloadSchema,
   agentRemoteSessionCreatePayloadSchema,
@@ -36,6 +45,12 @@ type SnapshotRecoveryRequest = {
   targetVersion?: number
   dispatched: boolean
 }
+type RequestWaiter = {
+  event: AgentRemoteServerEvent
+  resolve: (payload: AgentRemoteIncomingPayload) => void
+  reject: (error: Error) => void
+  timeout: ReturnType<typeof setTimeout>
+}
 
 export class AgentRemoteService {
   private readonly listeners = new Set<AgentRemoteStateListener>()
@@ -50,6 +65,7 @@ export class AgentRemoteService {
   private lastPersistedAckSeq = 0
   private persistTargetAckSeq = 0
   private persistAckPromise: Promise<void> | null = null
+  private readonly requestWaiters = new Map<string, RequestWaiter>()
 
   constructor(storage: AgentRemoteStorage = new AsyncStorageAgentRemoteStorage()) {
     this.storage = storage
@@ -109,6 +125,9 @@ export class AgentRemoteService {
           })
 
           void this.flushPendingAckCommit()
+          void this.listAgents().catch(error => {
+            logger.warn('Failed to refresh remote agents after websocket connect', error as Error)
+          })
           void this.recoverSessionsNeedingSnapshot('connected')
         },
         onDisconnected: () => {
@@ -184,6 +203,66 @@ export class AgentRemoteService {
     return requestId
   }
 
+  async listAgents(input: AgentRemoteListAgentsInput = {}): Promise<string> {
+    const requestId = input.requestId ?? uuid()
+    const payload = agentRemoteAgentListPayloadSchema.parse({})
+
+    this.dispatch({
+      type: 'request/sent',
+      request: createPendingRequest(requestId, 'agent.list')
+    })
+
+    this.sendEnvelope({
+      type: 'cmd',
+      event: 'agent.list',
+      requestId,
+      ts: Date.now(),
+      payload
+    })
+
+    return requestId
+  }
+
+  async upsertAgent(input: AgentRemoteUpsertAgentInput): Promise<string> {
+    const requestId = input.requestId ?? uuid()
+    const payload = agentRemoteAgentUpsertPayloadSchema.parse(input)
+
+    this.dispatch({
+      type: 'request/sent',
+      request: createPendingRequest(requestId, 'agent.upsert')
+    })
+
+    this.sendEnvelope({
+      type: 'cmd',
+      event: 'agent.upsert',
+      requestId,
+      ts: Date.now(),
+      payload
+    })
+
+    return requestId
+  }
+
+  async deleteAgent(input: AgentRemoteDeleteAgentInput): Promise<string> {
+    const requestId = input.requestId ?? uuid()
+    const payload = agentRemoteAgentDeletePayloadSchema.parse(input)
+
+    this.dispatch({
+      type: 'request/sent',
+      request: createPendingRequest(requestId, 'agent.delete')
+    })
+
+    this.sendEnvelope({
+      type: 'cmd',
+      event: 'agent.delete',
+      requestId,
+      ts: Date.now(),
+      payload
+    })
+
+    return requestId
+  }
+
   async sendMessage(input: AgentRemoteSendMessageInput): Promise<string> {
     const requestId = input.requestId ?? uuid()
     const payload = agentRemoteMessageSendPayloadSchema.parse(input)
@@ -222,6 +301,33 @@ export class AgentRemoteService {
     })
 
     return requestId
+  }
+
+  waitForRequestEvent<TPayload extends AgentRemoteIncomingPayload>(
+    requestId: string,
+    event: AgentRemoteServerEvent,
+    timeoutMs = 10_000
+  ): Promise<TPayload> {
+    return new Promise<TPayload>((resolve, reject) => {
+      const existingWaiter = this.requestWaiters.get(requestId)
+      if (existingWaiter) {
+        clearTimeout(existingWaiter.timeout)
+        existingWaiter.reject(new Error(`Request waiter replaced for ${requestId}`))
+        this.requestWaiters.delete(requestId)
+      }
+
+      const timeout = setTimeout(() => {
+        this.requestWaiters.delete(requestId)
+        reject(new Error(`Timed out waiting for ${event}`))
+      }, timeoutMs)
+
+      this.requestWaiters.set(requestId, {
+        event,
+        resolve: payload => resolve(payload as TPayload),
+        reject,
+        timeout
+      })
+    })
   }
 
   async persistAck(seq: number): Promise<void> {
@@ -334,7 +440,37 @@ export class AgentRemoteService {
       envelope
     })
 
+    this.resolveRequestWaiter(envelope)
+
     void this.orchestrateRecoveryAfterEnvelope(envelope)
+  }
+
+  private resolveRequestWaiter(envelope: AgentRemoteEnvelope): void {
+    if (!envelope.requestId) {
+      return
+    }
+
+    const waiter = this.requestWaiters.get(envelope.requestId)
+
+    if (!waiter) {
+      return
+    }
+
+    if (envelope.type === 'err') {
+      clearTimeout(waiter.timeout)
+      this.requestWaiters.delete(envelope.requestId)
+      const payload = agentRemoteProtocolErrorPayloadSchema.parse(envelope.payload)
+      waiter.reject(new Error(payload.message))
+      return
+    }
+
+    if (envelope.type !== 'evt' || envelope.event !== waiter.event) {
+      return
+    }
+
+    clearTimeout(waiter.timeout)
+    this.requestWaiters.delete(envelope.requestId)
+    waiter.resolve(envelope.payload as AgentRemoteIncomingPayload)
   }
 
   private async orchestrateRecoveryAfterEnvelope(envelope: AgentRemoteEnvelope): Promise<void> {

@@ -1,5 +1,5 @@
 import { assistantDatabase, mcpDatabase, providerDatabase, topicDatabase, websearchProviderDatabase } from '@database'
-import { db } from '@db'
+import { db, expoDb } from '@db'
 import { seedDatabase } from '@db/seeding'
 import * as Localization from 'expo-localization'
 
@@ -25,8 +25,6 @@ type AppDataMigration = {
 }
 
 const logger = loggerService.withContext('AppInitializationService')
-const DEFAULT_AGENT_REMOTE_URL = 'ws://127.0.0.1:8787/ios'
-
 let agentRemoteInitialized = false
 let agentRemoteHydrationPromise: Promise<void> | null = null
 
@@ -112,6 +110,27 @@ const APP_DATA_MIGRATIONS: AppDataMigration[] = [
 
       logger.info(`AI Gateway provider host updated to ${desiredHost}`)
     }
+  },
+  {
+    version: 4,
+    app_version: '0.1.5',
+    description: 'Add remote agent fields to assistants table',
+    migrate: async () => {
+      const columns = expoDb.getAllSync("PRAGMA table_info('assistants')") as Array<{ name?: string }>
+      const columnNames = new Set(columns.map(column => column.name).filter(Boolean))
+
+      if (!columnNames.has('provider')) {
+        expoDb.execSync("ALTER TABLE assistants ADD COLUMN provider TEXT")
+      }
+
+      if (!columnNames.has('directories')) {
+        expoDb.execSync("ALTER TABLE assistants ADD COLUMN directories TEXT")
+      }
+
+      if (!columnNames.has('permission_mode')) {
+        expoDb.execSync("ALTER TABLE assistants ADD COLUMN permission_mode TEXT")
+      }
+    }
   }
 ]
 
@@ -126,41 +145,48 @@ export function resetAppInitializationState(): void {
   logger.info('App initialization state reset')
 }
 
-function parseEnvBoolean(value?: string): boolean | undefined {
-  if (!value) {
-    return undefined
-  }
-
-  const normalized = value.trim().toLowerCase()
-
-  if (['1', 'true', 'yes', 'on'].includes(normalized)) {
-    return true
-  }
-
-  if (['0', 'false', 'no', 'off'].includes(normalized)) {
-    return false
-  }
-
-  return undefined
-}
-
-function resolveAgentRemoteConfig(): {
+async function resolveAgentRemoteConfig(): Promise<{
   enabled: boolean
-  url: string
+  url?: string
   sharedKey?: string
-} {
-  const envUrl = process.env.EXPO_PUBLIC_AGENT_REMOTE_URL?.trim() || process.env.AGENT_REMOTE_URL?.trim() || ''
-  const sharedKey =
-    process.env.EXPO_PUBLIC_AGENT_REMOTE_SHARED_KEY?.trim() || process.env.AGENT_REMOTE_SHARED_KEY?.trim() || undefined
-  const enabledFlag = parseEnvBoolean(
-    process.env.EXPO_PUBLIC_AGENT_REMOTE_ENABLED || process.env.AGENT_REMOTE_ENABLED
-  )
+}> {
+  const [url, sharedKey] = await Promise.all([
+    preferenceService.get('remote.relay_url'),
+    preferenceService.get('remote.shared_key')
+  ])
+
+  const normalizedUrl = url.trim()
+  const normalizedSharedKey = sharedKey.trim()
 
   return {
-    enabled: enabledFlag ?? Boolean(envUrl),
-    url: envUrl || DEFAULT_AGENT_REMOTE_URL,
-    sharedKey
+    enabled: normalizedUrl.length > 0,
+    url: normalizedUrl || undefined,
+    sharedKey: normalizedSharedKey || undefined
   }
+}
+
+export async function refreshAgentRemoteConnection(): Promise<void> {
+  await agentRemoteHydrationPromise
+
+  const config = await resolveAgentRemoteConfig()
+
+  if (!config.enabled || !config.url) {
+    agentRemoteInitialized = false
+    agentRemoteService.disconnect(1000, 'remote_settings_disabled')
+    logger.info('Agent remote service is disabled; websocket stopped')
+    return
+  }
+
+  agentRemoteInitialized = true
+  logger.info('Starting agent remote service', { url: config.url })
+
+  await agentRemoteService.connect({
+    url: config.url,
+    sharedKey: config.sharedKey,
+    reconnect: {
+      enabled: true
+    }
+  })
 }
 
 export async function initializeAgentRemoteService(): Promise<void> {
@@ -181,28 +207,12 @@ export async function initializeAgentRemoteService(): Promise<void> {
     return
   }
 
-  const config = resolveAgentRemoteConfig()
-
-  if (!config.enabled) {
-    logger.info('Agent remote service is disabled; skipping websocket startup')
-    return
+  try {
+    await refreshAgentRemoteConnection()
+  } catch (error) {
+    agentRemoteInitialized = false
+    logger.warn('Agent remote connection attempt failed', error as Error)
   }
-
-  agentRemoteInitialized = true
-  logger.info('Starting agent remote service', { url: config.url })
-
-  void agentRemoteService
-    .connect({
-      url: config.url,
-      sharedKey: config.sharedKey,
-      reconnect: {
-        enabled: true
-      }
-    })
-    .catch(error => {
-      agentRemoteInitialized = false
-      logger.warn('Agent remote connection attempt failed', error as Error)
-    })
 }
 
 async function ensureCurrentTopic(): Promise<void> {

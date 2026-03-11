@@ -12,12 +12,15 @@ export type Assistant = {
   name: string
   prompt: string
   topics: Topic[]
-  type: 'system' | 'built_in' | 'external'
+  type: 'system' | 'built_in' | 'external' | 'agent'
   emoji?: string
   description?: string
   model?: Model
   defaultModel?: Model
   settings?: Partial<AssistantSettings>
+  provider?: AgentProvider
+  directories?: string[]
+  permissionMode?: AgentPermissionMode
   // enableUrlContext 是 Gemini 的特有功能
   enableUrlContext?: boolean
   /** enableWebSearch 代表使用模型内置网络搜索功能 */
@@ -28,6 +31,16 @@ export type Assistant = {
   tags?: string[] // 助手标签
   group?: string[] // 助手分组
   mcpServers?: MCPServer[]
+}
+
+export const AGENT_PROVIDERS = ['claude-code', 'codex'] as const
+export type AgentProvider = (typeof AGENT_PROVIDERS)[number]
+
+export const AGENT_PERMISSION_MODES = ['bypassPermissions'] as const
+export type AgentPermissionMode = (typeof AGENT_PERMISSION_MODES)[number]
+
+export function isRemoteAgent(assistant?: Assistant | null): assistant is Assistant & { type: 'agent' } {
+  return assistant?.type === 'agent'
 }
 
 const ThinkModelTypes = [

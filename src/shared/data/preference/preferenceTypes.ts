@@ -33,6 +33,10 @@ export interface PreferenceSchemas {
     // Chat Configuration
     'chat.auto_scroll': boolean
 
+    // Remote Configuration
+    'remote.relay_url': string
+    'remote.shared_key': string
+
     // App State
     'app.initialization_version': number
     'app.dismissed_update_version': string

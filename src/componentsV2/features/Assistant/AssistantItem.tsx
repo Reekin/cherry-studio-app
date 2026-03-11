@@ -31,6 +31,10 @@ interface AssistantItemProps {
   isSelected?: boolean
   onToggleSelection?: (assistantId: string) => void
   onEnterMultiSelectMode?: (assistantId: string) => void
+  secondaryText?: string
+  isSelectable?: boolean
+  disableContextMenu?: boolean
+  onDelete?: (assistant: Assistant) => Promise<void> | void
 }
 
 const AssistantItem: FC<AssistantItemProps> = ({
@@ -39,7 +43,11 @@ const AssistantItem: FC<AssistantItemProps> = ({
   isMultiSelectMode = false,
   isSelected = false,
   onToggleSelection,
-  onEnterMultiSelectMode
+  onEnterMultiSelectMode,
+  secondaryText,
+  isSelectable = true,
+  disableContextMenu = false,
+  onDelete
 }) => {
   const { t } = useTranslation()
   const navigation = useNavigation<DrawerNavigationProps>()
@@ -48,7 +56,7 @@ const AssistantItem: FC<AssistantItemProps> = ({
   const topicCount = useTopicCount(assistant.id)
 
   const isDefaultAssistant = assistant.id === 'default'
-  const canBeSelected = !isDefaultAssistant && assistant.type !== 'system'
+  const canBeSelected = isSelectable && !isDefaultAssistant && assistant.type !== 'system'
 
   const handlePress = () => {
     if (isMultiSelectMode && canBeSelected) {
@@ -74,8 +82,12 @@ const AssistantItem: FC<AssistantItemProps> = ({
         }
       }
 
-      await topicService.deleteTopicsByAssistantId(assistant.id)
-      await assistantService.deleteAssistant(assistant.id)
+      if (onDelete) {
+        await onDelete(assistant)
+      } else {
+        await topicService.deleteTopicsByAssistantId(assistant.id)
+        await assistantService.deleteAssistant(assistant.id)
+      }
       toast.show(t('message.assistant_deleted'))
     } catch (error) {
       logger.error('Delete Assistant error', error)
@@ -108,7 +120,7 @@ const AssistantItem: FC<AssistantItemProps> = ({
       borderRadius={16}
       list={contextMenuItems}
       onPress={handlePress}
-      disableContextMenu={assistant.type === 'system' || isMultiSelectMode}>
+      disableContextMenu={disableContextMenu || assistant.type === 'system' || isMultiSelectMode}>
       <View className="bg-card items-center justify-between rounded-2xl px-2.5 py-2.5">
         <XStack className="gap-3.5">
           {isMultiSelectMode && canBeSelected && (
@@ -128,7 +140,7 @@ const AssistantItem: FC<AssistantItemProps> = ({
               {assistant.name}
             </Text>
             <Text ellipsizeMode="tail" numberOfLines={1} className="text-foreground-secondary text-xs">
-              {t('assistants.topics.count', { count: topicCount })}
+              {secondaryText ?? t('assistants.topics.count', { count: topicCount })}
             </Text>
           </YStack>
         </XStack>

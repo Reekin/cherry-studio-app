@@ -55,6 +55,7 @@ export class AgentRemoteWebSocketClient {
     return new Promise((resolve, reject) => {
       const recovery = this.getRecoveryQuery()
       const url = withQueryParams(options.url, {
+        key: options.sharedKey,
         deviceId: recovery.deviceId,
         lastAckSeq: recovery.lastAckSeq
       })

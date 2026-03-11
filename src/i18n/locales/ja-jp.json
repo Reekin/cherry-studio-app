@@ -1,5 +1,89 @@
 {
   "translation": {
+    "agent": {
+      "remote": {
+        "agent_empty": {
+          "connected": "No remote agents have been published from desktop yet.",
+          "disconnected": "Configure Remote Settings and connect to your desktop relay to load agents."
+        },
+        "agent_list_title": "Remote Agents",
+        "badge": {
+          "awaiting_snapshot": "Awaiting Snapshot",
+          "error": "Error",
+          "offline": "Offline",
+          "online": "Online",
+          "pushed": "Pushed",
+          "streaming": "Streaming"
+        },
+        "composer": {
+          "error": {
+            "missing_metadata": "Remote session is missing agent metadata.",
+            "send_failed": "Failed to send remote message."
+          },
+          "helper": {
+            "pending": "Message queued. Waiting for relay acknowledgement and desktop execution.",
+            "ready": "Send a message into this remote session.",
+            "waiting_metadata": "Waiting for session metadata before sending is available."
+          },
+          "placeholder": "Send a message to this remote session",
+          "queued": "Queued",
+          "send": "Send",
+          "toast": {
+            "queued": "Message queued for remote delivery. Waiting for desktop response."
+          }
+        },
+        "connection_required": "Connect to the relay before editing remote agents.",
+        "connection_required_hint": "Open Remote Settings, reconnect to the relay, then try again.",
+        "delete_confirm_message": "This deletes the desktop-authored remote agent from the relay.",
+        "delete_confirm_title": "Delete remote agent {{name}}?",
+        "delete_failed": "Failed to delete remote agent.",
+        "delete_success": "Remote agent deleted.",
+        "empty": {
+          "subtitle": "Snapshot recovery is standing by.",
+          "title": "Waiting for remote session messages"
+        },
+        "header": {
+          "desktop_mirrored": "This session is mirrored from desktop.",
+          "desktop_syncing": "Desktop changed this session. Pulling the latest snapshot now."
+        },
+        "list_title": "Remote Sessions",
+        "load_failed": "Failed to load remote agents.",
+        "loading": "Waiting for remote session",
+        "loading_with_id": "Waiting for remote session {{sessionId}}",
+        "message": {
+          "content": {
+            "cancelled": "Response cancelled.",
+            "empty": "No content yet",
+            "receiving": "Receiving response..."
+          },
+          "role": {
+            "assistant": "Remote assistant",
+            "system": "System"
+          },
+          "status": {
+            "cancelled": "Cancelled"
+          }
+        },
+        "open_chat": "Open Chat",
+        "session_create_failed": "Failed to create remote session.",
+        "settings_active_url": "Active URL",
+        "settings_bridge_label": "Desktop bridge",
+        "settings_connection_group": "Connection",
+        "settings_help": "The relay URL and shared key are stored in preferences and applied on save.",
+        "settings_relay_url": "Relay URL",
+        "settings_save_failed": "Failed to save remote settings.",
+        "settings_saved": "Remote settings saved.",
+        "settings_shared_key": "Shared Key",
+        "settings_shared_key_placeholder": "Optional shared secret",
+        "settings_status_group": "Status",
+        "settings_status_label": "WebSocket",
+        "settings_title": "Remote Settings",
+        "title": "Remote Session",
+        "updated_at": {
+          "waiting": "Waiting for updates"
+        }
+      }
+    },
     "assistants": {
       "market": {
         "add": {
@@ -1056,64 +1140,6 @@
       "permission_denied_message": "設定でCherry Studioにマイクへのアクセスを許可してください",
       "start": "音声入力を開始",
       "stop": "音声入力を停止"
-    },
-    "agent": {
-      "remote": {
-        "title": "Remote Session",
-        "list_title": "Remote Sessions",
-        "loading": "Waiting for remote session",
-        "loading_with_id": "Waiting for remote session {{sessionId}}",
-        "updated_at": {
-          "waiting": "Waiting for updates"
-        },
-        "header": {
-          "desktop_syncing": "Desktop changed this session. Pulling the latest snapshot now.",
-          "desktop_mirrored": "This session is mirrored from desktop."
-        },
-        "composer": {
-          "placeholder": "Send a message to this remote session",
-          "send": "Send",
-          "queued": "Queued",
-          "helper": {
-            "waiting_metadata": "Waiting for session metadata before sending is available.",
-            "pending": "Message queued. Waiting for relay acknowledgement and desktop execution.",
-            "ready": "Send a message into this remote session."
-          },
-          "error": {
-            "missing_metadata": "Remote session is missing agent metadata.",
-            "send_failed": "Failed to send remote message."
-          },
-          "toast": {
-            "queued": "Message queued for remote delivery. Waiting for desktop response."
-          }
-        },
-        "message": {
-          "role": {
-            "system": "System",
-            "assistant": "Remote assistant"
-          },
-          "status": {
-            "cancelled": "Cancelled"
-          },
-          "content": {
-            "receiving": "Receiving response...",
-            "cancelled": "Response cancelled.",
-            "empty": "No content yet"
-          }
-        },
-        "empty": {
-          "title": "Waiting for remote session messages",
-          "subtitle": "Snapshot recovery is standing by."
-        },
-        "badge": {
-          "pushed": "Pushed",
-          "online": "Online",
-          "offline": "Offline",
-          "awaiting_snapshot": "Awaiting Snapshot",
-          "streaming": "Streaming",
-          "error": "Error"
-        }
-      }
     }
   }
 }

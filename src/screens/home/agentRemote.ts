@@ -1,9 +1,20 @@
 import { t } from 'i18next'
 import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react'
 
-import { agentRemoteService, selectAgentRemoteSession, selectAgentRemoteSessions } from '@/services/agentRemote'
+import {
+  agentRemoteService,
+  selectAgentRemoteAgent,
+  selectAgentRemoteAgents,
+  selectAgentRemoteSession,
+  selectAgentRemoteSessions
+} from '@/services/agentRemote'
 import { loggerService } from '@/services/LoggerService'
-import type { AgentRemoteBridgePresence, AgentRemoteSessionState, AgentRemoteState } from '@/types/agentRemote'
+import type {
+  AgentRemoteAgent,
+  AgentRemoteBridgePresence,
+  AgentRemoteSessionState,
+  AgentRemoteState
+} from '@/types/agentRemote'
 
 const logger = loggerService.withContext('AgentRemoteUI')
 
@@ -51,6 +62,19 @@ export function useAgentRemoteSessions(): {
   }
 }
 
+export function useAgentRemoteAgents(): {
+  state: AgentRemoteState
+  agents: AgentRemoteAgent[]
+} {
+  const state = useAgentRemoteState()
+  const agents = useMemo(() => selectAgentRemoteAgents(state), [state])
+
+  return {
+    state,
+    agents
+  }
+}
+
 export function useAgentRemoteSession(sessionId?: string | null): {
   state: AgentRemoteState
   session: AgentRemoteSessionState | undefined
@@ -67,6 +91,25 @@ export function useAgentRemoteSession(sessionId?: string | null): {
   return {
     state,
     session
+  }
+}
+
+export function useAgentRemoteAgent(agentId?: string | null): {
+  state: AgentRemoteState
+  agent: AgentRemoteAgent | undefined
+} {
+  const state = useAgentRemoteState()
+  const agent = useMemo(() => {
+    if (!agentId) {
+      return undefined
+    }
+
+    return selectAgentRemoteAgent(state, agentId)
+  }, [agentId, state])
+
+  return {
+    state,
+    agent
   }
 }
 

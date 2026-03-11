@@ -1,4 +1,5 @@
 import type {
+  AgentRemoteAgent,
   AgentRemoteEnvelope,
   AgentRemoteMessageState,
   AgentRemotePendingRequest,
@@ -9,6 +10,9 @@ import type {
 import {
   AGENT_REMOTE_ACK_EVENT,
   agentRemoteAckPayloadSchema,
+  agentRemoteAgentDeletedPayloadSchema,
+  agentRemoteAgentListedPayloadSchema,
+  agentRemoteAgentUpsertedPayloadSchema,
   agentRemoteBridgePresencePayloadSchema,
   agentRemoteMessageDeltaPayloadSchema,
   agentRemoteMessageDonePayloadSchema,
@@ -57,10 +61,27 @@ export function createInitialAgentRemoteState(): AgentRemoteState {
       lastAckSeq: 0
     },
     bridgePresence: 'unknown',
+    agents: {},
+    agentOrder: [],
     sessions: {},
     sessionOrder: [],
     pendingRequests: {}
   }
+}
+
+function sortAgentOrder(agents: Record<string, AgentRemoteAgent>): string[] {
+  return Object.values(agents)
+    .sort((left, right) => {
+      const rightTimestamp = right.updatedAt ?? right.createdAt ?? 0
+      const leftTimestamp = left.updatedAt ?? left.createdAt ?? 0
+
+      if (rightTimestamp !== leftTimestamp) {
+        return rightTimestamp - leftTimestamp
+      }
+
+      return left.name.localeCompare(right.name)
+    })
+    .map(agent => agent.agentId)
 }
 
 function ensureSession(
@@ -149,6 +170,51 @@ function reduceServerEvent(state: AgentRemoteState, envelope: AgentRemoteEnvelop
   }
 
   switch (envelope.event) {
+    case 'agent.listed': {
+      const payload = agentRemoteAgentListedPayloadSchema.parse(envelope.payload)
+      const agents = payload.agents.reduce<Record<string, AgentRemoteAgent>>((result, agent) => {
+        result[agent.agentId] = agent
+        return result
+      }, {})
+
+      return {
+        ...baseState,
+        agents,
+        agentOrder: sortAgentOrder(agents)
+      }
+    }
+
+    case 'agent.upserted': {
+      const payload = agentRemoteAgentUpsertedPayloadSchema.parse(envelope.payload)
+      const agents = {
+        ...baseState.agents,
+        [payload.agent.agentId]: payload.agent
+      }
+
+      return {
+        ...baseState,
+        agents,
+        agentOrder: sortAgentOrder(agents)
+      }
+    }
+
+    case 'agent.deleted': {
+      const payload = agentRemoteAgentDeletedPayloadSchema.parse(envelope.payload)
+
+      if (!baseState.agents[payload.agentId]) {
+        return baseState
+      }
+
+      const agents = { ...baseState.agents }
+      delete agents[payload.agentId]
+
+      return {
+        ...baseState,
+        agents,
+        agentOrder: sortAgentOrder(agents)
+      }
+    }
+
     case 'session.created': {
       const payload = agentRemoteSessionCreatedPayloadSchema.parse(envelope.payload)
       const session = ensureSession(baseState, payload.sessionId, 'ios_created')
@@ -474,6 +540,14 @@ export function selectAgentRemoteSession(
 
 export function selectAgentRemoteSessions(state: AgentRemoteState): AgentRemoteSessionState[] {
   return state.sessionOrder.map(sessionId => state.sessions[sessionId]).filter(Boolean)
+}
+
+export function selectAgentRemoteAgents(state: AgentRemoteState): AgentRemoteAgent[] {
+  return state.agentOrder.map(agentId => state.agents[agentId]).filter(Boolean)
+}
+
+export function selectAgentRemoteAgent(state: AgentRemoteState, agentId: string): AgentRemoteAgent | undefined {
+  return state.agents[agentId]
 }
 
 export function createPendingRequest(
