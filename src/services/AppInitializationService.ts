@@ -28,6 +28,38 @@ const logger = loggerService.withContext('AppInitializationService')
 let agentRemoteInitialized = false
 let agentRemoteHydrationPromise: Promise<void> | null = null
 
+function normalizeLegacyDirectories(value: unknown): string[] {
+  if (typeof value !== 'string') {
+    return []
+  }
+
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return []
+  }
+
+  try {
+    const parsed = JSON.parse(trimmed)
+    if (Array.isArray(parsed)) {
+      return parsed
+        .filter((item): item is string => typeof item === 'string')
+        .map(item => item.trim())
+        .filter(item => item.length > 0)
+    }
+  } catch {
+    const fallback = trimmed
+      .split(/\r?\n|,/)
+      .map(item => item.trim())
+      .filter(item => item.length > 0)
+
+    if (fallback.every(item => item.includes('/') || item.includes('\\'))) {
+      return fallback
+    }
+  }
+
+  return []
+}
+
 const APP_DATA_MIGRATIONS: AppDataMigration[] = [
   {
     version: 1,
@@ -129,6 +161,32 @@ const APP_DATA_MIGRATIONS: AppDataMigration[] = [
 
       if (!columnNames.has('permission_mode')) {
         expoDb.execSync("ALTER TABLE assistants ADD COLUMN permission_mode TEXT")
+      }
+    }
+  },
+  {
+    version: 5,
+    app_version: '0.1.6',
+    description: 'Sanitize malformed remote agent directory rows',
+    migrate: async () => {
+      const rows = expoDb.getAllSync("SELECT id, directories FROM assistants WHERE directories IS NOT NULL") as Array<{
+        id?: string
+        directories?: string | null
+      }>
+
+      for (const row of rows) {
+        if (!row.id || typeof row.directories !== 'string') {
+          continue
+        }
+
+        const normalizedDirectories = normalizeLegacyDirectories(row.directories)
+        const serializedDirectories = normalizedDirectories.length > 0 ? JSON.stringify(normalizedDirectories) : null
+
+        if (serializedDirectories === row.directories) {
+          continue
+        }
+
+        expoDb.runSync('UPDATE assistants SET directories = ? WHERE id = ?', [serializedDirectories, row.id])
       }
     }
   }

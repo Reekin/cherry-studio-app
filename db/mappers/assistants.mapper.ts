@@ -3,6 +3,40 @@ import { safeJsonParse } from '@/utils/json'
 
 import { transformDbToTopic } from './topics.mapper'
 
+function parseStringArrayField(value: unknown): string[] {
+  if (!Array.isArray(value) && typeof value !== 'string') {
+    return []
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .filter((item): item is string => typeof item === 'string')
+      .map(item => item.trim())
+      .filter(item => item.length > 0)
+  }
+
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return []
+  }
+
+  const parsed = safeJsonParse(trimmed)
+  if (Array.isArray(parsed)) {
+    return parsed
+      .filter((item): item is string => typeof item === 'string')
+      .map(item => item.trim())
+      .filter(item => item.length > 0)
+  }
+
+  // Tolerate older malformed rows that stored plain text instead of a JSON array.
+  const fallback = trimmed
+    .split(/\r?\n|,/)
+    .map(item => item.trim())
+    .filter(item => item.length > 0)
+
+  return fallback.every(item => item.includes('/') || item.includes('\\')) ? fallback : []
+}
+
 /**
  * 将数据库记录转换为 Assistant 类型。
  * @param dbRecord - 从数据库检索的记录。
@@ -19,7 +53,7 @@ export function transformDbToAssistant(dbRecord: any): Assistant {
     emoji: dbRecord.emoji,
     description: dbRecord.description,
     provider: dbRecord.provider ?? undefined,
-    directories: safeJsonParse(dbRecord.directories, []),
+    directories: parseStringArrayField(dbRecord.directories),
     permissionMode: dbRecord.permission_mode ?? undefined,
     model: safeJsonParse(dbRecord.model),
     defaultModel: safeJsonParse(dbRecord.default_model),

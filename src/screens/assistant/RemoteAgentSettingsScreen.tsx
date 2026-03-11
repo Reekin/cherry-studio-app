@@ -2,7 +2,9 @@ import type { RouteProp } from '@react-navigation/native'
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native'
 import { Button, Spinner } from 'heroui-native'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { Pressable } from 'react-native'
 import { useTranslation } from 'react-i18next'
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
 
 import { Container, Group, GroupTitle, HeaderBar, SafeAreaContainer, Text, XStack, YStack } from '@/componentsV2'
 import { presentDialog } from '@/componentsV2/base/Dialog/useDialogManager'
@@ -107,7 +109,7 @@ export default function RemoteAgentSettingsScreen() {
     return normalizeRemoteAgentDirectories(form.directoriesText.split('\n'))
   }, [form.directoriesText])
 
-  const canSave = form.name.trim().length > 0 && isConnected && !isSaving
+  const canSave = form.name.trim().length > 0 && !isSaving
 
   const handleSave = useCallback(async () => {
     if (!form.name.trim()) {
@@ -273,8 +275,14 @@ export default function RemoteAgentSettingsScreen() {
           }
         ]}
       />
-      <Container>
-        <YStack className="gap-6">
+      <KeyboardAwareScrollView
+        className="flex-1"
+        contentContainerStyle={{ flexGrow: 1, paddingBottom: 32 }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        bottomOffset={24}>
+        <Container>
+          <YStack className="gap-6">
           {!isConnected ? (
             <Group>
               <YStack className="gap-1 p-4">
@@ -316,19 +324,33 @@ export default function RemoteAgentSettingsScreen() {
                     {(['claude-code', 'codex'] as const).map(provider => {
                       const isSelected = form.provider === provider
                       return (
-                        <Button
+                        <Pressable
                           key={provider}
-                          className={`flex-1 rounded-2xl ${isSelected ? 'primary-container' : ''}`}
-                          onPress={() => setForm(prev => ({ ...prev, provider }))}>
-                          <Button.Label>
-                            <Text className={isSelected ? 'primary-text font-semibold' : 'font-semibold'}>
+                          onPress={() => setForm(prev => ({ ...prev, provider }))}
+                          className={`flex-1 rounded-2xl border px-4 py-3 ${
+                            isSelected
+                              ? 'border-green-500 bg-green-500 shadow-sm'
+                              : 'border-border bg-card'
+                          }`}
+                          style={({ pressed }) => ({
+                            opacity: pressed ? 0.88 : 1,
+                            transform: [{ scale: pressed ? 0.98 : isSelected ? 1.02 : 1 }]
+                          })}>
+                          <Text
+                            className={`text-center font-semibold ${
+                              isSelected ? 'text-white' : 'text-foreground'
+                            }`}>
                               {provider === 'claude-code' ? 'Claude Code' : 'Codex'}
-                            </Text>
-                          </Button.Label>
-                        </Button>
+                          </Text>
+                        </Pressable>
                       )
                     })}
                   </XStack>
+                  <Text className="text-foreground-secondary text-xs">
+                    {t('agent.remote.form.provider_help', {
+                      defaultValue: 'Provider is locked once a remote session is created from this agent.'
+                    })}
+                  </Text>
                 </YStack>
               </YStack>
             </Group>
@@ -401,8 +423,9 @@ export default function RemoteAgentSettingsScreen() {
               </XStack>
             </Group>
           </YStack>
-        </YStack>
-      </Container>
+          </YStack>
+        </Container>
+      </KeyboardAwareScrollView>
     </SafeAreaContainer>
   )
 }
