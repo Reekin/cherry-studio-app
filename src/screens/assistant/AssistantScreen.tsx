@@ -20,7 +20,7 @@ import {
 } from '@/componentsV2'
 import { LiquidGlassButton } from '@/componentsV2/base/LiquidGlassButton'
 import AssistantItem from '@/componentsV2/features/Assistant/AssistantItem'
-import { presentAssistantItemSheet } from '@/componentsV2/features/Assistant/AssistantItemSheet'
+import { dismissAssistantItemSheet, presentAssistantItemSheet } from '@/componentsV2/features/Assistant/AssistantItemSheet'
 import RemoteAgentItem from '@/componentsV2/features/Assistant/RemoteAgentItem'
 import { Menu, Plus, Trash2 } from '@/componentsV2/icons/LucideIcon'
 import { useExternalAssistants } from '@/hooks/useAssistant'
@@ -215,7 +215,8 @@ export default function AssistantScreen() {
     async (agent: AgentRemoteAgent) => {
       try {
         const session = await createRemoteSessionFromAgent(agent)
-        navigation.navigate('Home', {
+        dismissAssistantItemSheet()
+        navigation.getParent()?.navigate('Home', {
           screen: 'ChatScreen',
           params: { topicId: buildRemoteTopicId(session.sessionId) }
         })

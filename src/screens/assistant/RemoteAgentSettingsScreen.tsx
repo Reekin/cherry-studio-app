@@ -147,7 +147,11 @@ export default function RemoteAgentSettingsScreen() {
       )
 
       await agentRemoteService.waitForRequestEvent(requestId, 'agent.upserted')
-      navigation.goBack()
+      if (navigation.canGoBack()) {
+        navigation.goBack()
+      } else {
+        navigation.navigate('AssistantScreen')
+      }
     } catch (error) {
       logger.error('Failed to save remote agent', error as Error, {
         agentId
@@ -198,7 +202,11 @@ export default function RemoteAgentSettingsScreen() {
         try {
           const requestId = await agentRemoteService.deleteAgent({ agentId })
           await agentRemoteService.waitForRequestEvent(requestId, 'agent.deleted')
-          navigation.goBack()
+          if (navigation.canGoBack()) {
+            navigation.goBack()
+          } else {
+            navigation.navigate('AssistantScreen')
+          }
         } catch (error) {
           logger.error('Failed to delete remote agent', error as Error, {
             agentId
