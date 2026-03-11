@@ -8,6 +8,9 @@ import TextField from '@/componentsV2/base/TextField'
 import { useToast } from '@/hooks/useToast'
 import { agentRemoteService } from '@/services/agentRemote'
 import type { AgentRemoteSessionState } from '@/types/agentRemote'
+import { selectPendingSessionMessageSends } from '@/types/agentRemote'
+
+import { useAgentRemoteState } from './agentRemote'
 
 interface RemoteSessionComposerProps {
   session: AgentRemoteSessionState
@@ -15,14 +18,23 @@ interface RemoteSessionComposerProps {
 
 export default function RemoteSessionComposer({ session }: RemoteSessionComposerProps) {
   const toast = useToast()
+  const remoteState = useAgentRemoteState()
   const [text, setText] = useState('')
   const [isSending, setIsSending] = useState(false)
+  const pendingSendCount = useMemo(
+    () => selectPendingSessionMessageSends(remoteState, session.sessionId).length,
+    [remoteState, session.sessionId]
+  )
   const trimmedText = text.trim()
-  const canSend = useMemo(() => trimmedText.length > 0 && !isSending && !!session.agentId, [isSending, session.agentId, trimmedText.length])
+  const canSend = useMemo(() => {
+    return trimmedText.length > 0 && !isSending && !!session.agentId
+  }, [isSending, session.agentId, trimmedText.length])
 
-  const helperText = session.agentId
-    ? 'Send a message into this remote session.'
-    : 'Waiting for session metadata before sending is available.'
+  const helperText = !session.agentId
+    ? 'Waiting for session metadata before sending is available.'
+    : pendingSendCount > 0
+      ? 'Message queued. Waiting for relay acknowledgement and desktop execution.'
+      : 'Send a message into this remote session.'
 
   const handleSend = async () => {
     if (!trimmedText || isSending) {
@@ -47,7 +59,7 @@ export default function RemoteSessionComposer({ session }: RemoteSessionComposer
 
       setText('')
       Keyboard.dismiss()
-      toast.show('Message sent to remote session.')
+      toast.show('Message queued for remote delivery. Waiting for desktop response.')
     } catch (error) {
       toast.show((error as Error).message || 'Failed to send remote message.', {
         color: '$red100',
@@ -86,7 +98,7 @@ export default function RemoteSessionComposer({ session }: RemoteSessionComposer
             onPress={() => {
               void handleSend()
             }}>
-            <Button.Label>{isSending ? 'Sending' : 'Send'}</Button.Label>
+            <Button.Label>{isSending || pendingSendCount > 0 ? 'Queued' : 'Send'}</Button.Label>
           </Button>
         </XStack>
         <Text className="text-foreground-secondary text-xs">{helperText}</Text>

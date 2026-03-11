@@ -331,3 +331,12 @@ export function parseAgentRemoteIncomingPayload(
 ): AgentRemoteIncomingPayload {
   return agentRemoteIncomingPayloadParsers[event].parse(payload) as AgentRemoteIncomingPayload
 }
+
+export function selectPendingSessionMessageSends(
+  state: AgentRemoteState,
+  sessionId: string
+): AgentRemotePendingRequest[] {
+  return Object.values(state.pendingRequests).filter(
+    request => request.event === 'message.send' && request.sessionId === sessionId && request.status === 'sent'
+  )
+}

@@ -14,6 +14,12 @@ interface RemoteSessionHeaderProps {
 
 export default function RemoteSessionHeader({ session, bridgePresence }: RemoteSessionHeaderProps) {
   const badges = getAgentRemoteSessionBadges(session, bridgePresence)
+  const desktopSyncHint =
+    session.visibility === 'desktop_pushed'
+      ? session.status === 'awaiting_snapshot'
+        ? 'Desktop changed this session. Pulling the latest snapshot now.'
+        : 'This session is mirrored from desktop.'
+      : null
 
   return (
     <View>
@@ -37,6 +43,7 @@ export default function RemoteSessionHeader({ session, bridgePresence }: RemoteS
             <Text className="text-[11px] font-medium">{`v${session.version}`}</Text>
           </View>
         </XStack>
+        {desktopSyncHint && <Text className="text-foreground-secondary text-xs">{desktopSyncHint}</Text>}
         <Text className="text-foreground-secondary text-xs">{formatAgentRemoteTimestamp(session.updatedAt)}</Text>
       </YStack>
     </View>

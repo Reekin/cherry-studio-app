@@ -143,12 +143,17 @@ function reduceServerEvent(state: AgentRemoteState, envelope: AgentRemoteEnvelop
     return state
   }
 
+  const baseState: AgentRemoteState = {
+    ...state,
+    pendingRequests: updatePendingRequestStatus(state, envelope.requestId, 'acknowledged')
+  }
+
   switch (envelope.event) {
     case 'session.created': {
       const payload = agentRemoteSessionCreatedPayloadSchema.parse(envelope.payload)
-      const session = ensureSession(state, payload.sessionId, 'ios_created')
+      const session = ensureSession(baseState, payload.sessionId, 'ios_created')
 
-      return upsertSession(state, {
+      return upsertSession(baseState, {
         ...session,
         agentId: payload.agentId,
         title: payload.title ?? session.title,
@@ -163,9 +168,9 @@ function reduceServerEvent(state: AgentRemoteState, envelope: AgentRemoteEnvelop
 
     case 'session.pushed': {
       const payload = agentRemoteSessionPushedPayloadSchema.parse(envelope.payload)
-      const session = ensureSession(state, payload.sessionId, 'desktop_pushed')
+      const session = ensureSession(baseState, payload.sessionId, 'desktop_pushed')
 
-      return upsertSession(state, {
+      return upsertSession(baseState, {
         ...session,
         agentId: payload.agentId,
         visibility: 'desktop_pushed',
@@ -178,12 +183,12 @@ function reduceServerEvent(state: AgentRemoteState, envelope: AgentRemoteEnvelop
 
     case 'session.version.bump': {
       const payload = agentRemoteSessionVersionBumpPayloadSchema.parse(envelope.payload)
-      const session = ensureSession(state, payload.sessionId)
+      const session = ensureSession(baseState, payload.sessionId)
       const nextVersion = Math.max(session.version, payload.version)
       const isSnapshotLagging =
         session.snapshotVersion === undefined || session.snapshotVersion < payload.version
 
-      return upsertSession(state, {
+      return upsertSession(baseState, {
         ...session,
         version: nextVersion,
         updatedAt: payload.updatedAt,
@@ -194,13 +199,13 @@ function reduceServerEvent(state: AgentRemoteState, envelope: AgentRemoteEnvelop
 
     case 'session.snapshot': {
       const payload = agentRemoteSessionSnapshotPayloadSchema.parse(envelope.payload)
-      const session = ensureSession(state, payload.sessionId)
+      const session = ensureSession(baseState, payload.sessionId)
 
       if (payload.snapshotVersion < session.version) {
-        return state
+        return baseState
       }
 
-      return upsertSession(state, {
+      return upsertSession(baseState, {
         ...session,
         status: 'ready',
         version: payload.snapshotVersion,
@@ -208,7 +213,7 @@ function reduceServerEvent(state: AgentRemoteState, envelope: AgentRemoteEnvelop
         snapshotSeqCeiling: payload.snapshotSeqCeiling,
         updatedAt: payload.updatedAt,
         lastError: undefined,
-        lastEventSeq: envelope.seq ?? session.lastEventSeq,
+        lastEventSeq: Math.max(envelope.seq ?? 0, payload.snapshotSeqCeiling, session.lastEventSeq ?? 0),
         messages: payload.messages.map(message => ({
           content: message.content,
           messageId: message.messageId,
@@ -222,7 +227,7 @@ function reduceServerEvent(state: AgentRemoteState, envelope: AgentRemoteEnvelop
 
     case 'message.delta': {
       const payload = agentRemoteMessageDeltaPayloadSchema.parse(envelope.payload)
-      const session = ensureSession(state, payload.sessionId)
+      const session = ensureSession(baseState, payload.sessionId)
       const existingMessage =
         session.messages.find(message => message.messageId === payload.messageId) ??
         ({
@@ -242,7 +247,7 @@ function reduceServerEvent(state: AgentRemoteState, envelope: AgentRemoteEnvelop
         updatedAt: payload.updatedAt
       }
 
-      return upsertSession(state, {
+      return upsertSession(baseState, {
         ...session,
         activeRunId: payload.runId ?? session.activeRunId,
         status: 'streaming',
@@ -255,7 +260,7 @@ function reduceServerEvent(state: AgentRemoteState, envelope: AgentRemoteEnvelop
 
     case 'message.done': {
       const payload = agentRemoteMessageDonePayloadSchema.parse(envelope.payload)
-      const session = ensureSession(state, payload.sessionId)
+      const session = ensureSession(baseState, payload.sessionId)
       const existingMessage =
         session.messages.find(message => message.messageId === payload.messageId) ??
         ({
@@ -273,7 +278,7 @@ function reduceServerEvent(state: AgentRemoteState, envelope: AgentRemoteEnvelop
         updatedAt: payload.updatedAt
       }
 
-      return upsertSession(state, {
+      return upsertSession(baseState, {
         ...session,
         activeRunId: payload.runId && session.activeRunId === payload.runId ? undefined : session.activeRunId,
         status: 'ready',
@@ -286,7 +291,7 @@ function reduceServerEvent(state: AgentRemoteState, envelope: AgentRemoteEnvelop
 
     case 'message.error': {
       const payload = agentRemoteMessageErrorPayloadSchema.parse(envelope.payload)
-      const session = ensureSession(state, payload.sessionId)
+      const session = ensureSession(baseState, payload.sessionId)
       const existingMessage =
         session.messages.find(message => message.messageId === payload.messageId) ??
         ({
@@ -309,7 +314,7 @@ function reduceServerEvent(state: AgentRemoteState, envelope: AgentRemoteEnvelop
         }
       }
 
-      return upsertSession(state, {
+      return upsertSession(baseState, {
         ...session,
         activeRunId: payload.runId && session.activeRunId === payload.runId ? undefined : session.activeRunId,
         status: 'error',
@@ -331,7 +336,7 @@ function reduceServerEvent(state: AgentRemoteState, envelope: AgentRemoteEnvelop
       const payload = agentRemoteBridgePresencePayloadSchema.parse(envelope.payload)
 
       return {
-        ...state,
+        ...baseState,
         bridgePresence: payload.status
       }
     }
@@ -357,7 +362,9 @@ function reduceErrorEnvelope(state: AgentRemoteState, envelope: AgentRemoteEnvel
 
   const session = ensureSession(state, sessionId)
   const nextStatus =
-    errorPayload.code === 'SNAPSHOT_REQUIRED' || errorPayload.code === 'ACK_GAP_DETECTED'
+    errorPayload.code === 'SNAPSHOT_REQUIRED' ||
+    errorPayload.code === 'ACK_GAP_DETECTED' ||
+    errorPayload.code === 'COMMAND_RECOVERY_REQUIRED'
       ? 'awaiting_snapshot'
       : 'error'
 

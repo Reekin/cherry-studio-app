@@ -269,6 +269,11 @@ export class AgentRemoteService {
 
   private handleSequencedEnvelope(envelope: SequencedInboundEnvelope): void {
     const currentAckSeq = this.getCurrentAckSeq()
+    const effectiveAckSeq = this.getEnvelopeAckSeq(envelope)
+    const isSnapshotCutover =
+      envelope.type === 'evt' &&
+      envelope.event === 'session.snapshot' &&
+      effectiveAckSeq >= currentAckSeq + 1
 
     if (envelope.seq <= currentAckSeq) {
       logger.info('Ignoring duplicate agent remote envelope', {
@@ -281,7 +286,7 @@ export class AgentRemoteService {
       return
     }
 
-    if (envelope.seq > currentAckSeq + 1) {
+    if (envelope.seq > currentAckSeq + 1 && !isSnapshotCutover) {
       logger.warn('Detected agent remote sequence gap', {
         currentAckSeq,
         event: envelope.event,
@@ -293,7 +298,7 @@ export class AgentRemoteService {
     }
 
     this.applyIncomingEnvelope(envelope)
-    this.markSeqConsumed(envelope.seq)
+    this.markSeqConsumed(effectiveAckSeq)
   }
 
   private async handleSequenceGap(envelope: SequencedInboundEnvelope, currentAckSeq: number): Promise<void> {
@@ -338,7 +343,9 @@ export class AgentRemoteService {
 
       if (
         payload.sessionId &&
-        (payload.code === 'SNAPSHOT_REQUIRED' || payload.code === 'ACK_GAP_DETECTED')
+        (payload.code === 'SNAPSHOT_REQUIRED' ||
+          payload.code === 'ACK_GAP_DETECTED' ||
+          payload.code === 'COMMAND_RECOVERY_REQUIRED')
       ) {
         await this.requestSnapshotRecovery(payload.sessionId, payload.code, undefined, true)
       }
@@ -551,6 +558,18 @@ export class AgentRemoteService {
 
   private getCurrentAckSeq(): number {
     return Math.max(this.lastConsumedSeq, this.state.connection.lastAckSeq)
+  }
+
+  private getEnvelopeAckSeq(envelope: SequencedInboundEnvelope): number {
+    if (envelope.type === 'evt' && envelope.event === 'session.snapshot') {
+      const payload = agentRemoteSessionSnapshotPayloadSchema.safeParse(envelope.payload).data
+
+      if (payload) {
+        return Math.max(envelope.seq, payload.snapshotSeqCeiling)
+      }
+    }
+
+    return envelope.seq
   }
 
   private sendEnvelope(envelope: AgentRemoteEnvelope): void {

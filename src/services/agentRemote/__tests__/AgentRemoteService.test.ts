@@ -140,6 +140,50 @@ describe('AgentRemoteService', () => {
     )
   })
 
+  it('advances the ack cursor to snapshotSeqCeiling after a snapshot cutover', async () => {
+    const storage = createStorage()
+    const service = new AgentRemoteService(storage)
+    const send = jest.fn()
+
+    await service.hydrate()
+    ;(service as any).client = {
+      disconnect: jest.fn(),
+      isConnected: () => true,
+      send
+    }
+
+    service.handleIncomingEnvelope({
+      type: 'evt',
+      event: 'session.snapshot',
+      seq: 3,
+      ts: Date.now(),
+      payload: {
+        sessionId: 'session-9',
+        snapshotVersion: 2,
+        snapshotSeqCeiling: 8,
+        updatedAt: 300,
+        messages: []
+      }
+    })
+
+    await flushMicrotasks()
+
+    expect(storage.setLastAckSeq).toHaveBeenLastCalledWith(8)
+
+    jest.advanceTimersByTime(250)
+    await flushMicrotasks()
+
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'ack',
+        payload: {
+          deviceId: 'device-1',
+          ackSeq: 8
+        }
+      })
+    )
+  })
+
   it('requests snapshots for pushed sessions, lagging version bumps, and recovery errors', async () => {
     const storage = createStorage()
     const service = new AgentRemoteService(storage)
@@ -204,6 +248,28 @@ describe('AgentRemoteService', () => {
       payload: {
         code: 'SNAPSHOT_REQUIRED',
         message: 'Need snapshot',
+        retryable: true,
+        sessionId: 'session-2'
+      }
+    })
+
+    await flushMicrotasks()
+
+    expect(requestSnapshotSpy).toHaveBeenCalledWith({
+      sessionId: 'session-2',
+      snapshotVersion: undefined
+    })
+
+    requestSnapshotSpy.mockClear()
+
+    service.handleIncomingEnvelope({
+      type: 'err',
+      event: 'error',
+      seq: 4,
+      ts: Date.now(),
+      payload: {
+        code: 'COMMAND_RECOVERY_REQUIRED',
+        message: 'Recover command outcome',
         retryable: true,
         sessionId: 'session-2'
       }

@@ -19,7 +19,7 @@ import { usePreference } from '@/hooks/usePreference'
 import { useCurrentTopic } from '@/hooks/useTopic'
 import type { HomeStackParamList } from '@/navigators/HomeStackNavigator'
 
-import { getRemoteSessionId, useAgentRemoteSession } from './agentRemote'
+import { getRemoteSessionId, useAgentRemoteSession, useEnsureAgentRemoteSnapshot } from './agentRemote'
 import ChatContent from './ChatContent'
 import RemoteSessionComposer from './RemoteSessionComposer'
 import RemoteSessionHeader from './RemoteSessionHeader'
@@ -41,6 +41,8 @@ const ChatScreen = () => {
     state: agentRemoteState,
     session: remoteSession
   } = useAgentRemoteSession(remoteSessionId)
+
+  useEnsureAgentRemoteSnapshot(remoteSession)
 
   const { assistant, isLoading: assistantLoading } = useAssistant(isRemoteMode ? '' : currentTopic?.assistantId || '')
   const specificBottom = useBottom()
