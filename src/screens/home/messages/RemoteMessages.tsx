@@ -1,10 +1,16 @@
 import React, { useEffect, useMemo, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Keyboard, Pressable, ScrollView, View } from 'react-native'
 
 import { Text, XStack, YStack } from '@/componentsV2'
 import type { AgentRemoteBridgePresence, AgentRemoteMessageState, AgentRemoteSessionState } from '@/types/agentRemote'
 
-import { formatAgentRemoteTimestamp, getAgentRemoteSessionBadges } from '../agentRemote'
+import {
+  formatAgentRemoteTimestamp,
+  getAgentRemoteMessageRoleLabel,
+  getAgentRemoteMessageStatusLabel,
+  getAgentRemoteSessionBadges
+} from '../agentRemote'
 
 interface RemoteMessagesProps {
   session: AgentRemoteSessionState
@@ -20,30 +26,27 @@ function RemoteStatusBadge({ label }: { label: string }) {
 }
 
 function RemoteMessageBubble({ message }: { message: AgentRemoteMessageState }) {
+  const { t } = useTranslation()
   const isUser = message.role === 'user'
-  const roleLabel =
-    message.role === 'system' ? 'System' : message.role === 'tool' ? 'Tool' : 'Remote assistant'
+  const roleLabel = getAgentRemoteMessageRoleLabel(message.role)
   const content =
     message.content ||
     (message.status === 'streaming'
-      ? 'Receiving response...'
+      ? t('agent.remote.message.content.receiving')
       : message.status === 'cancelled'
-        ? 'Response cancelled.'
-        : message.error?.message ?? 'No content yet')
+        ? t('agent.remote.message.content.cancelled')
+        : (message.error?.message ?? t('agent.remote.message.content.empty')))
 
   return (
     <View className={isUser ? 'items-end' : 'items-start'}>
-      {!isUser && (
-        <Text className="text-foreground-secondary mb-1 px-1 text-xs font-medium">
-          {roleLabel}
-        </Text>
-      )}
-      <View className={`max-w-[88%] ${isUser ? 'secondary-container rounded-l-2xl rounded-br-md rounded-tr-2xl' : 'rounded-2xl border'} px-4 py-3`}>
+      {!isUser && <Text className="text-foreground-secondary mb-1 px-1 text-xs font-medium">{roleLabel}</Text>}
+      <View
+        className={`max-w-[88%] ${isUser ? 'secondary-container rounded-l-2xl rounded-br-md rounded-tr-2xl' : 'rounded-2xl border'} px-4 py-3`}>
         <Text className="text-sm leading-6">{content}</Text>
       </View>
       <XStack className={`mt-1 items-center gap-2 px-1 ${isUser ? 'justify-end' : 'justify-start'}`}>
         <Text className="text-foreground-secondary text-[11px]">{formatAgentRemoteTimestamp(message.updatedAt)}</Text>
-        {message.status !== 'done' && <RemoteStatusBadge label={message.status} />}
+        {message.status !== 'done' && <RemoteStatusBadge label={getAgentRemoteMessageStatusLabel(message.status)} />}
         {message.error?.code && <RemoteStatusBadge label={message.error.code} />}
       </XStack>
     </View>
@@ -51,6 +54,7 @@ function RemoteMessageBubble({ message }: { message: AgentRemoteMessageState }) 
 }
 
 export default function RemoteMessages({ session, bridgePresence }: RemoteMessagesProps) {
+  const { t } = useTranslation()
   const scrollViewRef = useRef<ScrollView>(null)
   const badges = useMemo(() => getAgentRemoteSessionBadges(session, bridgePresence), [bridgePresence, session])
   const lastMessageKey = useMemo(() => {
@@ -68,9 +72,9 @@ export default function RemoteMessages({ session, bridgePresence }: RemoteMessag
     return (
       <Pressable className="flex-1" onPress={() => Keyboard.dismiss()}>
         <YStack className="flex-1 items-center justify-center gap-3 px-8">
-          <Text className="text-center text-lg font-semibold">Waiting for remote session messages</Text>
+          <Text className="text-center text-lg font-semibold">{t('agent.remote.empty.title')}</Text>
           <Text className="text-foreground-secondary text-center text-sm">
-            {badges.length > 0 ? badges.join(' · ') : 'Snapshot recovery is standing by.'}
+            {badges.length > 0 ? badges.join(' · ') : t('agent.remote.empty.subtitle')}
           </Text>
         </YStack>
       </Pressable>

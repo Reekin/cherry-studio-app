@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { View } from 'react-native'
 
 import { HeaderBar, XStack, YStack } from '@/componentsV2'
@@ -13,17 +14,18 @@ interface RemoteSessionHeaderProps {
 }
 
 export default function RemoteSessionHeader({ session, bridgePresence }: RemoteSessionHeaderProps) {
+  const { t } = useTranslation()
   const badges = getAgentRemoteSessionBadges(session, bridgePresence)
   const desktopSyncHint =
     session.visibility === 'desktop_pushed'
       ? session.status === 'awaiting_snapshot'
-        ? 'Desktop changed this session. Pulling the latest snapshot now.'
-        : 'This session is mirrored from desktop.'
+        ? t('agent.remote.header.desktop_syncing')
+        : t('agent.remote.header.desktop_mirrored')
       : null
 
   return (
     <View>
-      <HeaderBar title="Remote Session" />
+      <HeaderBar title={t('agent.remote.title')} />
       <YStack className="gap-2 px-4 pb-3">
         <Text className="text-base font-semibold" numberOfLines={1}>
           {session.title || session.sessionId}

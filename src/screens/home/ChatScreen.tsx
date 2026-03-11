@@ -3,6 +3,7 @@ import type { RouteProp } from '@react-navigation/native'
 import { DrawerActions, useNavigation, useRoute } from '@react-navigation/native'
 import type { StackNavigationProp } from '@react-navigation/stack'
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, Platform, View } from 'react-native'
 import { PanGestureHandler, State } from 'react-native-gesture-handler'
 import { KeyboardAvoidingView, KeyboardController } from 'react-native-keyboard-controller'
@@ -29,6 +30,7 @@ KeyboardController.preload()
 type ChatScreenNavigationProp = DrawerNavigationProp<any> & StackNavigationProp<HomeStackParamList>
 
 const ChatScreen = () => {
+  const { t } = useTranslation()
   const insets = useSafeAreaInsets()
   const navigation = useNavigation<ChatScreenNavigationProp>()
   const route = useRoute<RouteProp<HomeStackParamList, 'ChatScreen'>>()
@@ -37,10 +39,7 @@ const ChatScreen = () => {
   const routeTopicId = route.params?.topicId
   const remoteSessionId = getRemoteSessionId(routeTopicId)
   const isRemoteMode = !!remoteSessionId
-  const {
-    state: agentRemoteState,
-    session: remoteSession
-  } = useAgentRemoteSession(remoteSessionId)
+  const { state: agentRemoteState, session: remoteSession } = useAgentRemoteSession(remoteSessionId)
 
   useEnsureAgentRemoteSnapshot(remoteSession)
 
@@ -126,11 +125,13 @@ const ChatScreen = () => {
           justifyContent: 'center',
           alignItems: 'center'
         }}>
-        <HeaderBar title="Remote Session" />
+        <HeaderBar title={t('agent.remote.title')} />
         <ActivityIndicator />
         <View style={{ marginTop: 12, paddingHorizontal: 24 }}>
           <Text className="text-foreground-secondary text-center text-sm">
-            {remoteSessionId ? `Waiting for remote session ${remoteSessionId}` : 'Waiting for remote session'}
+            {remoteSessionId
+              ? t('agent.remote.loading_with_id', { sessionId: remoteSessionId })
+              : t('agent.remote.loading')}
           </Text>
         </View>
       </SafeAreaContainer>

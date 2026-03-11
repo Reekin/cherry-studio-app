@@ -1043,6 +1043,64 @@
         "recent": "最近的主題"
       }
     },
+    "agent": {
+      "remote": {
+        "title": "遠端工作階段",
+        "list_title": "遠端工作階段",
+        "loading": "正在等待遠端工作階段",
+        "loading_with_id": "正在等待遠端工作階段 {{sessionId}}",
+        "updated_at": {
+          "waiting": "等待更新中"
+        },
+        "header": {
+          "desktop_syncing": "桌面端已變更此工作階段，正在拉取最新快照。",
+          "desktop_mirrored": "此工作階段由桌面端鏡像同步。"
+        },
+        "composer": {
+          "placeholder": "向此遠端工作階段傳送訊息",
+          "send": "傳送",
+          "queued": "已排隊",
+          "helper": {
+            "waiting_metadata": "正在等待工作階段中繼資料，暫時無法傳送。",
+            "pending": "訊息已入列，等待 Relay 確認與桌面端執行。",
+            "ready": "向此遠端工作階段傳送訊息。"
+          },
+          "error": {
+            "missing_metadata": "遠端工作階段缺少 agent 中繼資料。",
+            "send_failed": "傳送遠端訊息失敗。"
+          },
+          "toast": {
+            "queued": "訊息已加入遠端投遞佇列，等待桌面端回應。"
+          }
+        },
+        "message": {
+          "role": {
+            "system": "系統",
+            "assistant": "遠端助理"
+          },
+          "status": {
+            "cancelled": "已取消"
+          },
+          "content": {
+            "receiving": "正在接收回應...",
+            "cancelled": "回應已取消。",
+            "empty": "尚無內容"
+          }
+        },
+        "empty": {
+          "title": "正在等待遠端工作階段訊息",
+          "subtitle": "快照恢復待命中。"
+        },
+        "badge": {
+          "pushed": "已推送",
+          "online": "在線",
+          "offline": "離線",
+          "awaiting_snapshot": "等待快照",
+          "streaming": "生成中",
+          "error": "錯誤"
+        }
+      }
+    },
     "update": {
       "description": "有新版本可用，是否立即更新？",
       "ignore": "不再提示",

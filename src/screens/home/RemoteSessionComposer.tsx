@@ -1,5 +1,6 @@
 import { Button } from 'heroui-native'
 import React, { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Keyboard, View } from 'react-native'
 
 import { XStack, YStack } from '@/componentsV2'
@@ -17,6 +18,7 @@ interface RemoteSessionComposerProps {
 }
 
 export default function RemoteSessionComposer({ session }: RemoteSessionComposerProps) {
+  const { t } = useTranslation()
   const toast = useToast()
   const remoteState = useAgentRemoteState()
   const [text, setText] = useState('')
@@ -31,10 +33,10 @@ export default function RemoteSessionComposer({ session }: RemoteSessionComposer
   }, [isSending, session.agentId, trimmedText.length])
 
   const helperText = !session.agentId
-    ? 'Waiting for session metadata before sending is available.'
+    ? t('agent.remote.composer.helper.waiting_metadata')
     : pendingSendCount > 0
-      ? 'Message queued. Waiting for relay acknowledgement and desktop execution.'
-      : 'Send a message into this remote session.'
+      ? t('agent.remote.composer.helper.pending')
+      : t('agent.remote.composer.helper.ready')
 
   const handleSend = async () => {
     if (!trimmedText || isSending) {
@@ -42,7 +44,7 @@ export default function RemoteSessionComposer({ session }: RemoteSessionComposer
     }
 
     if (!session.agentId) {
-      toast.show('Remote session is missing agent metadata.', { color: '$red100', duration: 2500 })
+      toast.show(t('agent.remote.composer.error.missing_metadata'), { color: '$red100', duration: 2500 })
       return
     }
 
@@ -59,9 +61,9 @@ export default function RemoteSessionComposer({ session }: RemoteSessionComposer
 
       setText('')
       Keyboard.dismiss()
-      toast.show('Message queued for remote delivery. Waiting for desktop response.')
+      toast.show(t('agent.remote.composer.toast.queued'))
     } catch (error) {
-      toast.show((error as Error).message || 'Failed to send remote message.', {
+      toast.show((error as Error).message || t('agent.remote.composer.error.send_failed'), {
         color: '$red100',
         duration: 3000
       })
@@ -78,7 +80,7 @@ export default function RemoteSessionComposer({ session }: RemoteSessionComposer
             <TextField className="w-full">
               <TextField.Input
                 className="text-foreground h-auto"
-                placeholder="Send a message to this remote session"
+                placeholder={t('agent.remote.composer.placeholder')}
                 value={text}
                 onChangeText={setText}
                 multiline
@@ -98,7 +100,9 @@ export default function RemoteSessionComposer({ session }: RemoteSessionComposer
             onPress={() => {
               void handleSend()
             }}>
-            <Button.Label>{isSending || pendingSendCount > 0 ? 'Queued' : 'Send'}</Button.Label>
+            <Button.Label>
+              {isSending || pendingSendCount > 0 ? t('agent.remote.composer.queued') : t('agent.remote.composer.send')}
+            </Button.Label>
           </Button>
         </XStack>
         <Text className="text-foreground-secondary text-xs">{helperText}</Text>

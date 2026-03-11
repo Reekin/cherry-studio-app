@@ -1,3 +1,4 @@
+import { t } from 'i18next'
 import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react'
 
 import { agentRemoteService, selectAgentRemoteSession, selectAgentRemoteSessions } from '@/services/agentRemote'
@@ -124,35 +125,65 @@ export function getAgentRemoteSessionBadges(
   const badges = new Set<string>()
 
   if (session.visibility === 'desktop_pushed') {
-    badges.add('pushed')
+    badges.add(t('agent.remote.badge.pushed'))
   }
 
   if (bridgePresence === 'online') {
-    badges.add('online')
+    badges.add(t('agent.remote.badge.online'))
   }
 
   if (bridgePresence === 'offline') {
-    badges.add('offline')
+    badges.add(t('agent.remote.badge.offline'))
   }
 
   if (session.status === 'awaiting_snapshot') {
-    badges.add('awaiting_snapshot')
+    badges.add(t('agent.remote.badge.awaiting_snapshot'))
   }
 
   if (session.status === 'streaming') {
-    badges.add('streaming')
+    badges.add(t('agent.remote.badge.streaming'))
   }
 
   if (session.status === 'error') {
-    badges.add('error')
+    badges.add(t('agent.remote.badge.error'))
   }
 
   return [...badges]
 }
 
+export function getAgentRemoteMessageRoleLabel(role: AgentRemoteSessionState['messages'][number]['role']): string {
+  if (role === 'system') {
+    return t('agent.remote.message.role.system')
+  }
+
+  if (role === 'tool') {
+    return t('common.tool')
+  }
+
+  return t('agent.remote.message.role.assistant')
+}
+
+export function getAgentRemoteMessageStatusLabel(
+  status: AgentRemoteSessionState['messages'][number]['status']
+): string {
+  if (status === 'streaming') {
+    return t('agent.remote.badge.streaming')
+  }
+
+  if (status === 'cancelled') {
+    return t('agent.remote.message.status.cancelled')
+  }
+
+  if (status === 'error') {
+    return t('agent.remote.badge.error')
+  }
+
+  return status
+}
+
 export function formatAgentRemoteTimestamp(timestamp?: number): string {
   if (!timestamp) {
-    return 'Waiting for updates'
+    return t('agent.remote.updated_at.waiting')
   }
 
   return new Date(timestamp).toLocaleString()

@@ -122,7 +122,7 @@ export function TopicList({
     const data: ListItem[] = []
 
     if (remoteSessions.length > 0) {
-      data.push({ type: 'remoteHeader', title: 'Remote Sessions' })
+      data.push({ type: 'remoteHeader', title: t('agent.remote.list_title') })
 
       remoteSessions.forEach(session => {
         data.push({ type: 'remoteSession', session })

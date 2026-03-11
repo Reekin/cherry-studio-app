@@ -1043,6 +1043,64 @@
         "recent": "Recent Topics"
       }
     },
+    "agent": {
+      "remote": {
+        "title": "Remote Session",
+        "list_title": "Remote Sessions",
+        "loading": "Waiting for remote session",
+        "loading_with_id": "Waiting for remote session {{sessionId}}",
+        "updated_at": {
+          "waiting": "Waiting for updates"
+        },
+        "header": {
+          "desktop_syncing": "Desktop changed this session. Pulling the latest snapshot now.",
+          "desktop_mirrored": "This session is mirrored from desktop."
+        },
+        "composer": {
+          "placeholder": "Send a message to this remote session",
+          "send": "Send",
+          "queued": "Queued",
+          "helper": {
+            "waiting_metadata": "Waiting for session metadata before sending is available.",
+            "pending": "Message queued. Waiting for relay acknowledgement and desktop execution.",
+            "ready": "Send a message into this remote session."
+          },
+          "error": {
+            "missing_metadata": "Remote session is missing agent metadata.",
+            "send_failed": "Failed to send remote message."
+          },
+          "toast": {
+            "queued": "Message queued for remote delivery. Waiting for desktop response."
+          }
+        },
+        "message": {
+          "role": {
+            "system": "System",
+            "assistant": "Remote assistant"
+          },
+          "status": {
+            "cancelled": "Cancelled"
+          },
+          "content": {
+            "receiving": "Receiving response...",
+            "cancelled": "Response cancelled.",
+            "empty": "No content yet"
+          }
+        },
+        "empty": {
+          "title": "Waiting for remote session messages",
+          "subtitle": "Snapshot recovery is standing by."
+        },
+        "badge": {
+          "pushed": "Pushed",
+          "online": "Online",
+          "offline": "Offline",
+          "awaiting_snapshot": "Awaiting Snapshot",
+          "streaming": "Streaming",
+          "error": "Error"
+        }
+      }
+    },
     "update": {
       "description": "A new version is available. Would you like to update now?",
       "ignore": "Don't remind again",
