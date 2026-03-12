@@ -11,7 +11,10 @@ import {
 import { loggerService } from '@/services/LoggerService'
 import type {
   AgentRemoteAgent,
+  AgentRemoteBlockState,
   AgentRemoteBridgePresence,
+  AgentRemoteMessageState,
+  AgentRemoteSemanticBlockType,
   AgentRemoteSessionState,
   AgentRemoteState
 } from '@/types/agentRemote'
@@ -19,6 +22,13 @@ import type {
 const logger = loggerService.withContext('AgentRemoteUI')
 
 export const REMOTE_TOPIC_PREFIX = 'remote:'
+
+export type AgentRemoteRenderableBlock = AgentRemoteBlockState
+
+export interface AgentRemoteRenderableMessage {
+  message: AgentRemoteMessageState
+  blocks: AgentRemoteRenderableBlock[]
+}
 
 export function buildRemoteTopicId(sessionId: string): string {
   return `${REMOTE_TOPIC_PREFIX}${sessionId}`
@@ -43,6 +53,32 @@ function subscribe(callback: () => void): () => void {
 
 function getSnapshot(): AgentRemoteState {
   return agentRemoteService.getState()
+}
+
+export function getOrderedAgentRemoteMessages(session?: AgentRemoteSessionState): AgentRemoteMessageState[] {
+  if (!session) {
+    return []
+  }
+
+  return session.messageOrder.map(messageId => session.messages[messageId]).filter(Boolean)
+}
+
+export function getOrderedAgentRemoteBlocks(
+  session: AgentRemoteSessionState,
+  message: AgentRemoteMessageState
+): AgentRemoteRenderableBlock[] {
+  return message.blockIds.map(blockId => session.blocks[blockId]).filter(Boolean)
+}
+
+export function getRenderableAgentRemoteMessages(session?: AgentRemoteSessionState): AgentRemoteRenderableMessage[] {
+  if (!session) {
+    return []
+  }
+
+  return getOrderedAgentRemoteMessages(session).map(message => ({
+    message,
+    blocks: getOrderedAgentRemoteBlocks(session, message)
+  }))
 }
 
 export function useAgentRemoteState(): AgentRemoteState {
@@ -122,7 +158,7 @@ export function shouldRequestAgentRemoteSnapshot(session?: AgentRemoteSessionSta
     return true
   }
 
-  if (session.visibility === 'desktop_pushed' && session.messages.length === 0) {
+  if (session.visibility === 'desktop_pushed' && session.messageOrder.length === 0) {
     return true
   }
 
@@ -146,7 +182,7 @@ export function useEnsureAgentRemoteSnapshot(session?: AgentRemoteSessionState):
       session.status,
       session.version,
       session.snapshotVersion ?? 'none',
-      session.messages.length
+      session.messageOrder.length
     ].join(':')
 
     if (lastRequestedKeyRef.current === requestKey) {
@@ -194,7 +230,7 @@ export function getAgentRemoteSessionBadges(
   return [...badges]
 }
 
-export function getAgentRemoteMessageRoleLabel(role: AgentRemoteSessionState['messages'][number]['role']): string {
+export function getAgentRemoteMessageRoleLabel(role: AgentRemoteMessageState['role']): string {
   if (role === 'system') {
     return t('agent.remote.message.role.system')
   }
@@ -203,17 +239,19 @@ export function getAgentRemoteMessageRoleLabel(role: AgentRemoteSessionState['me
     return t('common.tool')
   }
 
+  if (role === 'user') {
+    return 'You'
+  }
+
   return t('agent.remote.message.role.assistant')
 }
 
-export function getAgentRemoteMessageStatusLabel(
-  status: AgentRemoteSessionState['messages'][number]['status']
-): string {
-  if (status === 'streaming') {
+export function getAgentRemoteMessageStatusLabel(status: AgentRemoteMessageState['status']): string {
+  if (status === 'pending' || status === 'processing' || status === 'streaming') {
     return t('agent.remote.badge.streaming')
   }
 
-  if (status === 'cancelled') {
+  if (status === 'paused') {
     return t('agent.remote.message.status.cancelled')
   }
 
@@ -222,6 +260,48 @@ export function getAgentRemoteMessageStatusLabel(
   }
 
   return status
+}
+
+export function getAgentRemoteBlockLabel(type: AgentRemoteSemanticBlockType): string {
+  switch (type) {
+    case 'unknown':
+      return 'Unknown'
+    case 'main_text':
+      return 'Text'
+    case 'thinking':
+      return 'Thinking'
+    case 'translation':
+      return 'Translation'
+    case 'image':
+      return 'Image'
+    case 'code':
+      return 'Code'
+    case 'tool':
+      return 'Tool'
+    case 'file':
+      return 'File'
+    case 'error':
+      return 'Error'
+    case 'citation':
+      return 'Citation'
+    case 'video':
+      return 'Video'
+    case 'compact':
+      return 'Compact'
+  }
+}
+
+export function isAgentRemoteToolLikeBlock(type: AgentRemoteSemanticBlockType): boolean {
+  return (
+    type === 'tool' ||
+    type === 'file' ||
+    type === 'code' ||
+    type === 'image' ||
+    type === 'citation' ||
+    type === 'video' ||
+    type === 'compact' ||
+    type === 'translation'
+  )
 }
 
 export function formatAgentRemoteTimestamp(timestamp?: number): string {

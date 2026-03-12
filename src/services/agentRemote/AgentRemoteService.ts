@@ -25,7 +25,8 @@ import {
   agentRemoteSessionPushedPayloadSchema,
   agentRemoteSessionSnapshotPayloadSchema,
   agentRemoteSessionSnapshotRequestPayloadSchema,
-  agentRemoteSessionVersionBumpPayloadSchema} from '@/types/agentRemote'
+  agentRemoteSessionVersionBumpPayloadSchema
+} from '@/types/agentRemote'
 import { uuid } from '@/utils'
 
 import { AgentRemoteWebSocketClient } from './AgentRemoteWebSocketClient'
@@ -604,7 +605,7 @@ export class AgentRemoteService {
     for (const session of sessions) {
       const needsSnapshot =
         session.status === 'awaiting_snapshot' ||
-        (session.visibility === 'desktop_pushed' && session.messages.length === 0) ||
+        (session.visibility === 'desktop_pushed' && session.messageOrder.length === 0) ||
         (typeof session.snapshotVersion === 'number' && session.snapshotVersion < session.version)
 
       if (!needsSnapshot) {

@@ -34,8 +34,27 @@ export type AgentRemoteSessionStatus = z.infer<typeof agentRemoteSessionStatusSc
 export const agentRemoteMessageRoleSchema = z.enum(['user', 'assistant', 'system', 'tool'])
 export type AgentRemoteMessageRole = z.infer<typeof agentRemoteMessageRoleSchema>
 
-export const agentRemoteMessageStatusSchema = z.enum(['streaming', 'done', 'error', 'cancelled'])
+export const agentRemoteMessageStatusSchema = z.enum(['pending', 'processing', 'streaming', 'success', 'error', 'paused'])
 export type AgentRemoteMessageStatus = z.infer<typeof agentRemoteMessageStatusSchema>
+
+export const agentRemoteBlockStatusSchema = agentRemoteMessageStatusSchema
+export type AgentRemoteBlockStatus = z.infer<typeof agentRemoteBlockStatusSchema>
+
+export const agentRemoteSemanticBlockTypeSchema = z.enum([
+  'unknown',
+  'main_text',
+  'thinking',
+  'translation',
+  'image',
+  'code',
+  'tool',
+  'file',
+  'error',
+  'citation',
+  'video',
+  'compact'
+])
+export type AgentRemoteSemanticBlockType = z.infer<typeof agentRemoteSemanticBlockTypeSchema>
 
 export const agentRemoteEnvelopeTypeSchema = z.enum(['cmd', 'evt', 'ack', 'err'])
 export type AgentRemoteEnvelopeType = z.infer<typeof agentRemoteEnvelopeTypeSchema>
@@ -59,9 +78,12 @@ export const AGENT_REMOTE_SERVER_EVENTS = [
   'agent.deleted',
   'session.created',
   'session.pushed',
-  'message.delta',
-  'message.done',
-  'message.error',
+  'message.started',
+  'message.block.added',
+  'message.block.updated',
+  'message.block.completed',
+  'message.completed',
+  'message.failed',
   'session.version.bump',
   'session.snapshot',
   'bridge.online',
@@ -98,6 +120,15 @@ export const agentRemoteEnvelopeSchema = z.object({
   payload: z.unknown().default({})
 })
 export type AgentRemoteEnvelope = z.infer<typeof agentRemoteEnvelopeSchema>
+
+const agentRemoteMetadataSchema = z.record(z.string(), z.unknown())
+
+export const agentRemoteSemanticErrorSchema = z.object({
+  code: z.string(),
+  message: z.string(),
+  retryable: z.boolean().default(false)
+})
+export type AgentRemoteSemanticError = z.infer<typeof agentRemoteSemanticErrorSchema>
 
 export const agentRemoteAckPayloadSchema = z.object({
   deviceId: z.string(),
@@ -180,46 +211,107 @@ export const agentRemoteSessionVersionBumpPayloadSchema = z.object({
 })
 export type AgentRemoteSessionVersionBumpPayload = z.infer<typeof agentRemoteSessionVersionBumpPayloadSchema>
 
-export const agentRemoteMessageDeltaPayloadSchema = z.object({
+export const agentRemoteMessageStartedPayloadSchema = z.object({
   sessionId: z.string(),
   runId: z.string().optional(),
-  messageId: z.string().default('assistant'),
-  role: agentRemoteMessageRoleSchema.default('assistant'),
-  delta: z.string().default(''),
-  version: z.number().int().nonnegative().optional(),
-  updatedAt: z.number().int().optional()
+  messageId: z.string(),
+  role: agentRemoteMessageRoleSchema,
+  status: agentRemoteMessageStatusSchema.default('streaming'),
+  createdAt: z.number().int(),
+  updatedAt: z.number().int(),
+  metadata: agentRemoteMetadataSchema.optional()
 })
-export type AgentRemoteMessageDeltaPayload = z.infer<typeof agentRemoteMessageDeltaPayloadSchema>
+export type AgentRemoteMessageStartedPayload = z.infer<typeof agentRemoteMessageStartedPayloadSchema>
 
-export const agentRemoteMessageDonePayloadSchema = z.object({
-  sessionId: z.string(),
-  runId: z.string().optional(),
-  messageId: z.string().default('assistant'),
-  version: z.number().int().nonnegative().optional(),
-  updatedAt: z.number().int().optional(),
-  status: z.enum(['success', 'cancelled']).default('success')
+export const agentRemoteBlockStateSchema = z.object({
+  blockId: z.string(),
+  messageId: z.string(),
+  type: agentRemoteSemanticBlockTypeSchema,
+  status: agentRemoteBlockStatusSchema.default('streaming'),
+  order: z.number().int().nonnegative(),
+  createdAt: z.number().int(),
+  updatedAt: z.number().int(),
+  content: z.unknown().optional(),
+  metadata: agentRemoteMetadataSchema.optional(),
+  error: agentRemoteSemanticErrorSchema.optional()
 })
-export type AgentRemoteMessageDonePayload = z.infer<typeof agentRemoteMessageDonePayloadSchema>
+export type AgentRemoteBlockState = z.infer<typeof agentRemoteBlockStateSchema>
 
-export const agentRemoteMessageErrorPayloadSchema = z.object({
+export const agentRemoteMessageBlockAddedPayloadSchema = z.object({
   sessionId: z.string(),
   runId: z.string().optional(),
-  messageId: z.string().default('assistant'),
+  messageId: z.string(),
+  block: agentRemoteBlockStateSchema
+})
+export type AgentRemoteMessageBlockAddedPayload = z.infer<typeof agentRemoteMessageBlockAddedPayloadSchema>
+
+export const agentRemoteBlockPatchSchema = z
+  .object({
+    type: agentRemoteSemanticBlockTypeSchema.optional(),
+    status: agentRemoteBlockStatusSchema.optional(),
+    order: z.number().int().nonnegative().optional(),
+    content: z.unknown().optional(),
+    metadata: agentRemoteMetadataSchema.optional(),
+    error: agentRemoteSemanticErrorSchema.optional()
+  })
+  .refine(patch => Object.keys(patch).length > 0, {
+    message: 'Block patch cannot be empty'
+  })
+export type AgentRemoteBlockPatch = z.infer<typeof agentRemoteBlockPatchSchema>
+
+export const agentRemoteMessageBlockUpdatedPayloadSchema = z.object({
+  sessionId: z.string(),
+  runId: z.string().optional(),
+  messageId: z.string(),
+  blockId: z.string(),
+  patch: agentRemoteBlockPatchSchema,
+  updatedAt: z.number().int()
+})
+export type AgentRemoteMessageBlockUpdatedPayload = z.infer<typeof agentRemoteMessageBlockUpdatedPayloadSchema>
+
+export const agentRemoteMessageBlockCompletedPayloadSchema = z.object({
+  sessionId: z.string(),
+  runId: z.string().optional(),
+  messageId: z.string(),
+  blockId: z.string(),
+  status: z.enum(['success', 'error', 'paused']).default('success'),
+  updatedAt: z.number().int()
+})
+export type AgentRemoteMessageBlockCompletedPayload = z.infer<typeof agentRemoteMessageBlockCompletedPayloadSchema>
+
+export const agentRemoteMessageCompletedPayloadSchema = z.object({
+  sessionId: z.string(),
+  runId: z.string().optional(),
+  messageId: z.string(),
+  status: z.enum(['success', 'paused']).default('success'),
+  version: z.number().int().nonnegative().optional(),
+  updatedAt: z.number().int()
+})
+export type AgentRemoteMessageCompletedPayload = z.infer<typeof agentRemoteMessageCompletedPayloadSchema>
+
+export const agentRemoteMessageFailedPayloadSchema = z.object({
+  sessionId: z.string(),
+  runId: z.string().optional(),
+  messageId: z.string(),
+  status: z.literal('error').default('error'),
   code: z.string().min(1),
   message: z.string(),
   retryable: z.boolean().default(false),
   version: z.number().int().nonnegative().optional(),
-  updatedAt: z.number().int().optional()
+  updatedAt: z.number().int()
 })
-export type AgentRemoteMessageErrorPayload = z.infer<typeof agentRemoteMessageErrorPayloadSchema>
+export type AgentRemoteMessageFailedPayload = z.infer<typeof agentRemoteMessageFailedPayloadSchema>
 
 export const agentRemoteSnapshotMessageSchema = z.object({
   messageId: z.string(),
   runId: z.string().optional(),
-  role: agentRemoteMessageRoleSchema.default('assistant'),
-  content: z.string().default(''),
-  status: agentRemoteMessageStatusSchema.default('done'),
-  updatedAt: z.number().int().optional()
+  role: agentRemoteMessageRoleSchema,
+  status: agentRemoteMessageStatusSchema,
+  createdAt: z.number().int(),
+  updatedAt: z.number().int(),
+  blockIds: z.array(z.string()).default([]),
+  metadata: agentRemoteMetadataSchema.optional(),
+  error: agentRemoteSemanticErrorSchema.optional()
 })
 export type AgentRemoteSnapshotMessage = z.infer<typeof agentRemoteSnapshotMessageSchema>
 
@@ -228,7 +320,9 @@ export const agentRemoteSessionSnapshotPayloadSchema = z.object({
   snapshotVersion: z.number().int().nonnegative(),
   snapshotSeqCeiling: z.number().int().nonnegative(),
   updatedAt: z.number().int().optional(),
-  messages: z.array(agentRemoteSnapshotMessageSchema).default([])
+  messageOrder: z.array(z.string()).default([]),
+  messages: z.array(agentRemoteSnapshotMessageSchema).default([]),
+  blocks: z.array(agentRemoteBlockStateSchema).default([])
 })
 export type AgentRemoteSessionSnapshotPayload = z.infer<typeof agentRemoteSessionSnapshotPayloadSchema>
 
@@ -268,9 +362,12 @@ export type AgentRemoteIncomingPayload =
   | AgentRemoteAgentListedPayload
   | AgentRemoteAgentUpsertedPayload
   | AgentRemoteBridgePresencePayload
-  | AgentRemoteMessageDeltaPayload
-  | AgentRemoteMessageDonePayload
-  | AgentRemoteMessageErrorPayload
+  | AgentRemoteMessageStartedPayload
+  | AgentRemoteMessageBlockAddedPayload
+  | AgentRemoteMessageBlockUpdatedPayload
+  | AgentRemoteMessageBlockCompletedPayload
+  | AgentRemoteMessageCompletedPayload
+  | AgentRemoteMessageFailedPayload
   | AgentRemoteSessionCreatedPayload
   | AgentRemoteSessionPushedPayload
   | AgentRemoteSessionSnapshotPayload
@@ -280,10 +377,12 @@ export interface AgentRemoteMessageState {
   messageId: string
   runId?: string
   role: AgentRemoteMessageRole
-  content: string
   status: AgentRemoteMessageStatus
-  updatedAt?: number
-  error?: Pick<AgentRemoteMessageErrorPayload, 'code' | 'message' | 'retryable'>
+  createdAt: number
+  updatedAt: number
+  blockIds: string[]
+  metadata?: Record<string, unknown>
+  error?: AgentRemoteSemanticError
 }
 
 export interface AgentRemoteSessionErrorState {
@@ -308,7 +407,9 @@ export interface AgentRemoteSessionState {
   lastEventSeq?: number
   activeRunId?: string
   lastError?: AgentRemoteSessionErrorState
-  messages: AgentRemoteMessageState[]
+  messageOrder: string[]
+  messages: Record<string, AgentRemoteMessageState>
+  blocks: Record<string, AgentRemoteBlockState>
 }
 
 export interface AgentRemotePendingRequest {
@@ -379,9 +480,12 @@ export const agentRemoteIncomingPayloadParsers: Record<AgentRemoteServerEvent, z
   'agent.upserted': agentRemoteAgentUpsertedPayloadSchema,
   'bridge.offline': agentRemoteBridgePresencePayloadSchema,
   'bridge.online': agentRemoteBridgePresencePayloadSchema,
-  'message.delta': agentRemoteMessageDeltaPayloadSchema,
-  'message.done': agentRemoteMessageDonePayloadSchema,
-  'message.error': agentRemoteMessageErrorPayloadSchema,
+  'message.block.added': agentRemoteMessageBlockAddedPayloadSchema,
+  'message.block.completed': agentRemoteMessageBlockCompletedPayloadSchema,
+  'message.block.updated': agentRemoteMessageBlockUpdatedPayloadSchema,
+  'message.completed': agentRemoteMessageCompletedPayloadSchema,
+  'message.failed': agentRemoteMessageFailedPayloadSchema,
+  'message.started': agentRemoteMessageStartedPayloadSchema,
   'session.created': agentRemoteSessionCreatedPayloadSchema,
   'session.pushed': agentRemoteSessionPushedPayloadSchema,
   'session.snapshot': agentRemoteSessionSnapshotPayloadSchema,

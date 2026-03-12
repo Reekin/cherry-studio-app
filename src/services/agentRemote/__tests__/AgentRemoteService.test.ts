@@ -34,7 +34,7 @@ describe('AgentRemoteService', () => {
     jest.restoreAllMocks()
   })
 
-  it('persists consumed seq values and sends throttled ack.commit payloads', async () => {
+  it('persists consumed seq values and sends throttled ack.commit payloads for semantic events', async () => {
     const storage = createStorage()
     const service = new AgentRemoteService(storage)
     const send = jest.fn()
@@ -61,24 +61,45 @@ describe('AgentRemoteService', () => {
 
     service.handleIncomingEnvelope({
       type: 'evt',
-      event: 'message.delta',
-      runId: RUN_ID,
+      event: 'message.started',
       seq: 2,
       ts: Date.now(),
       payload: {
         sessionId: 'session-1',
+        runId: RUN_ID,
         messageId: 'assistant-1',
         role: 'assistant',
-        runId: RUN_ID,
-        delta: 'Hello',
-        version: 2,
+        status: 'streaming',
+        createdAt: 200,
         updatedAt: 200
+      }
+    })
+
+    service.handleIncomingEnvelope({
+      type: 'evt',
+      event: 'message.block.added',
+      seq: 3,
+      ts: Date.now(),
+      payload: {
+        sessionId: 'session-1',
+        runId: RUN_ID,
+        messageId: 'assistant-1',
+        block: {
+          blockId: 'text-1',
+          messageId: 'assistant-1',
+          type: 'main_text',
+          status: 'streaming',
+          order: 1,
+          createdAt: 210,
+          updatedAt: 210,
+          content: ''
+        }
       }
     })
 
     await flushMicrotasks()
 
-    expect(storage.setLastAckSeq).toHaveBeenLastCalledWith(2)
+    expect(storage.setLastAckSeq).toHaveBeenLastCalledWith(3)
     expect(send).not.toHaveBeenCalled()
 
     jest.advanceTimersByTime(250)
@@ -91,7 +112,7 @@ describe('AgentRemoteService', () => {
         event: 'ack.commit',
         payload: {
           deviceId: 'device-1',
-          ackSeq: 2
+          ackSeq: 3
         }
       })
     )
@@ -162,7 +183,29 @@ describe('AgentRemoteService', () => {
         snapshotVersion: 2,
         snapshotSeqCeiling: 8,
         updatedAt: 300,
-        messages: []
+        messageOrder: ['assistant-9'],
+        messages: [
+          {
+            messageId: 'assistant-9',
+            role: 'assistant',
+            status: 'success',
+            createdAt: 280,
+            updatedAt: 300,
+            blockIds: ['text-9']
+          }
+        ],
+        blocks: [
+          {
+            blockId: 'text-9',
+            messageId: 'assistant-9',
+            type: 'main_text',
+            status: 'success',
+            order: 1,
+            createdAt: 280,
+            updatedAt: 300,
+            content: 'Recovered'
+          }
+        ]
       }
     })
 
